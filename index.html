@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clock</title>
+  <style>
+    body {
+      padding: 0;
+      margin: 0;
+      background-color: #121212;
+      overflow: hidden;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    .app {
+      --clock-size: 3vw;
+      --gap: calc(var(--clock-size) * 0.05);
+      --clock-segment-w: calc(var(--clock-size) * 4 + var(--gap) * 5);
+      --clock-segment-h: calc(var(--clock-size) * 6 + var(--gap) * 5);
+      font-family: sans-serif;
+      text-align: center;
+      display: flex;
+      gap: var(--gap);
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    .app > div:not(.colon) {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--gap);
+      width: var(--clock-segment-w);
+      height: var(--clock-segment-h);
+    }
+
+    .colon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--gap);
+      height: var(--clock-segment-h);
+      flex-shrink: 0;
+    }
+
+    .clock {
+      --w: 60%;
+      --h: 3px;
+      position: relative;
+      width: var(--clock-size);
+      height: var(--clock-size);
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 2px solid #1a1a1a;
+      background: linear-gradient(225deg, #151515 10%, #1d1d1d);
+      box-shadow: -2px 2px 6px #0b0b0b,
+                   2px -2px 6px #232323;
+      --time-val: 0;
+      --time-max: 60;
+    }
+
+    .clock[data-digit-idx="0"], .clock[data-digit-idx="1"] {
+      --time-val: var(--hour-val);
+      --time-max: 24;
+    }
+
+    .clock[data-digit-idx="2"], .clock[data-digit-idx="3"] {
+      --time-val: var(--minute-val);
+      --time-max: 60;
+    }
+
+    .clock[data-digit-idx="4"], .clock[data-digit-idx="5"], .clock[data-colon] {
+      --time-val: var(--second-val);
+      --time-max: 60;
+    }
+
+    .clock::before,
+    .clock::after {
+      position: absolute;
+      content: '';
+      top: calc(50% - var(--h) * 0.5);
+      left: 50%;
+      transform-origin: 0% 50%;
+      width: var(--w);
+      height: var(--h);
+      border-radius: 9999px;
+      transform: rotate(calc(var(--angle) * 1deg));
+    }
+
+    .clock::before {
+      --angle: var(--hour-angle);
+      background: hsl(calc((mod(var(--angle), 180) * 2 + (var(--time-val) / var(--time-max)) * 360) * 1deg) 100% 62%);
+    }
+
+    .clock::after {
+      --angle: var(--minute-angle);
+      background: hsl(calc((mod(var(--angle), 180) * 2 + (var(--time-val) / var(--time-max)) * 360) * 1deg) 100% 62%);
+    }
+
+    .controls {
+      position: fixed;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      z-index: 10;
+    }
+
+    .controls button {
+      background: #1a1a1a;
+      color: #888;
+      border: 2px solid #333;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-family: sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .controls button:hover {
+      background: #2a2a2a;
+      color: #fff;
+      border-color: #555;
+    }
+
+    .controls button.active {
+      background: #222;
+      color: #fff;
+      border-color: #00ffcc;
+      box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <div class="controls">
+    <button id="btn-auto" class="active">Auto (15s/2s)</button>
+    <button id="btn-time">Time</button>
+    <button id="btn-cloud">Clouds & Rain</button>
+    <button id="btn-weather">Weather</button>
+    <button id="btn-neon">Neon Pulse</button>
+    <button id="btn-vortex">Vortex</button>
+  </div>
+  <script>
+    const H =  { h: 0,   m: 180 },
+          V =  { h: 270, m: 90 },
+          TL = { h: 180, m: 270 },
+          TR = { h: 0,   m: 270 },
+          BL = { h: 180, m: 90 },
+          BR = { h: 0,   m: 90 },
+          NW = { h: 45,  m: 135 },
+          NE = { h: 315, m: 225 },
+          SE = { h: 225, m: 315 },
+          SL = { h: 315, m: 135 },
+          E =  { isIdle: true };
+
+    const digits = [
+      [BR, H, H, BL, V, BR, BL, V, V, V, V, V, V, V, V, V, V, TR, TL, V, TR, H, H, TL],
+      [BR, H, BL, E, TR, BL, V, E, E, V, V, E, E, V, V, E, BR, TL, TR, BL, TR, H, H, TL],
+      [BR, H, H, BL, TR, H, BL, V, BR, H, TL, V, V, BR, H, TL, V, TR, H, BL, TR, H, H, TL],
+      [BR, H, H, BL, TR, H, BL, V, E, BR, TL, V, E, TR, BL, V, BR, H, TL, V, TR, H, H, TL],
+      [BR, BL, BR, BL, V, V, V, V, V, TR, TL, V, TR, H, BL, V, E, E, V, V, E, E, TR, TL],
+      [BR, H, H, BL, V, BR, H, TL, V, TR, H, BL, TR, H, BL, V, BR, H, TL, V, TR, H, H, TL],
+      [BR, H, H, BL, V, BR, H, TL, V, TR, H, BL, V, BR, BL, V, V, TR, TL, V, TR, H, H, TL],
+      [BR, H, H, BL, TR, H, BL, V, E, E, V, V, E, E, V, V, E, E, V, V, E, E, TR, TL],
+      [BR, H, H, BL, V, BR, BL, V, V, TR, TL, V, V, BR, BL, V, V, TR, TL, V, TR, H, H, TL],
+      [BR, H, H, BL, V, BR, BL, V, V, TR, TL, V, TR, H, BL, V, BR, H, TL, V, TR, H, H, TL],
+      [E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E],
+      [BR, BL, E, E, TR, TL, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E],
+      [BR, H, H, BL, V, BR, H, TL, V, TR, H, BL, V, E, E, E, V, E, E, E, TR, TL, E, E],
+      [BR, H, H, BL, V, BR, H, TL, V, E, E, E, V, E, E, E, V, TR, H, BL, TR, H, H, TL],
+      [BR, BL, E, SL, TR, TL, SL, E, E, E, SL, E, E, SL, E, E, E, SL, BR, BL, SL, E, TR, TL],
+      [E, E, E, E, E, E, E, E, E, H, H, E, E, E, E, E, E, E, E, E, E, E, E, E]
+    ];
+
+    const SEG_X = [0, 4, 8, 9, 13, 17, 18, 22];
+
+    const mkDigit = (i, seg) => {
+      const div = document.createElement('div');
+      const baseX = SEG_X[seg];
+      for (let j = 0; j < 24; j++) {
+        const clock = document.createElement('div');
+        clock.className = 'clock';
+        clock.dataset.digitIdx = i;
+        clock.dataset.clockIdx = j;
+        clock.dataset.gridX = baseX + j % 4;
+        clock.dataset.gridY = Math.floor(j / 4);
+        div.appendChild(clock);
+      }
+      return div;
+    };
+
+    const COLON_DOTS = new Set([1, 4]);
+
+    const mkColon = (i, seg) => {
+      const div = document.createElement('div');
+      div.className = 'colon';
+      const baseX = SEG_X[seg];
+      for (let j = 0; j < 6; j++) {
+        const clock = document.createElement('div');
+        clock.className = 'clock';
+        clock.dataset.colon = '';
+        clock.dataset.colonGroup = i;
+        clock.dataset.colonSlot = j;
+        clock.dataset.gridX = baseX;
+        clock.dataset.gridY = j;
+        if (!COLON_DOTS.has(j)) clock.dataset.colonFill = '';
+        div.appendChild(clock);
+      }
+      return div;
+    };
+
+    const app = document.createElement('div');
+    app.className = 'app';
+    app.append(
+      mkDigit(0, 0), mkDigit(1, 1), mkColon(0, 2),
+      mkDigit(2, 3), mkDigit(3, 4), mkColon(1, 5),
+      mkDigit(4, 6), mkDigit(5, 7)
+    );
+    document.getElementById('root').appendChild(app);
+
+    const RING_LENGTH = 15000;
+    const TIME_LENGTH = 5000;
+    const CYCLE = RING_LENGTH + TIME_LENGTH;
+    const IDLE_FADE = 500;
+
+    const cloudIdle = (x, y, now) => {
+      const t = now / 1000;
+      
+      // Cloud shapes (fluffy tops, flat bottoms)
+      // We'll define a few cloud clusters
+      const inCloud = (cx, cy, r) => Math.hypot(x - cx, y - cy) <= r;
+      
+      let isCloud = false;
+      // Cloud 1 (left)
+      if (inCloud(5, 2, 1.5) || inCloud(7, 1.5, 2) || inCloud(9, 2, 1.5)) isCloud = true;
+      // Cloud 2 (right)
+      if (inCloud(17, 1.5, 1.8) || inCloud(20, 1, 2.2) || inCloud(22, 1.8, 1.5)) isCloud = true;
+      
+      // Flatten the bottoms of the clouds
+      if (y > 2.5) isCloud = false;
+
+      let baseH, baseM, weight = 0;
+
+      if (isCloud) {
+        // Clouds are white/grey (we can't change color directly, but we can make them horizontal)
+        // Let's make clouds puffy by using diagonal hands for the edges and horizontal for the middle
+        baseH = H.h; baseM = H.m;
+        weight = 1;
+      } else {
+        // Rain falling down
+        // Randomize rain drops based on x position and time
+        const rainSpeed = 3;
+        const dropSpacing = 4;
+        const dropY = (t * rainSpeed + x * 1.3) % dropSpacing;
+        
+        // Only rain under the clouds
+        const underCloud = (x >= 3 && x <= 11) || (x >= 15 && x <= 24);
+        
+        if (underCloud && y > 2.5 && Math.abs(y - dropY - 2.5) < 0.5) {
+          // Raindrop (vertical line)
+          baseH = V.h; baseM = V.m;
+          weight = 1;
+        }
+      }
+
+      // Birds (wiggle animation on random clocks)
+      // We'll use the same wiggle logic but applied to a few moving "birds"
+      const bird1X = (t * 2) % 30 - 2;
+      const bird2X = (t * 1.5 + 10) % 30 - 2;
+      const bird3X = (t * 2.5 + 20) % 30 - 2;
+      
+      const isBird = (bx, by) => Math.abs(x - bx) < 0.5 && Math.abs(y - by) < 0.5;
+      
+      if (isBird(bird1X, 1) || isBird(bird2X, 0) || isBird(bird3X, 2)) {
+        const wiggle = Math.sin(now / 60) * 15;
+        // Birds match clouds (horizontal) but with a slight wiggle
+        baseH = H.h + wiggle;
+        baseM = H.m - wiggle;
+        weight = 1;
+      }
+
+      if (weight === 0) {
+        return { h: 225, m: 225, ringWeight: 1 };
+      }
+
+      return { h: baseH, m: baseM, ringWeight: weight };
+    };
+
+    const neonIdle = (x, y, now) => {
+      const t = now / 1000;
+      const dx = x - 12.5;
+      const dy = y - 2.5;
+      
+      const cx1 = Math.cos(t * 0.8) * 8;
+      const cy1 = Math.sin(t * 1.1) * 2;
+      const d1 = Math.hypot(dx - cx1, dy - cy1);
+      
+      const cx2 = Math.cos(t * 0.9 + Math.PI) * 8;
+      const cy2 = Math.sin(t * 1.3 + Math.PI) * 2;
+      const d2 = Math.hypot(dx - cx2, dy - cy2);
+      
+      const angle = (d1 - d2) * 30 + t * 50;
+      const spread = 45 + Math.sin(d1 * 0.5 + t * 2) * 45;
+      
+      return { h: angle + spread, m: angle - spread, ringWeight: 1 };
+    };
+
+    const vortexIdle = (x, y, now) => {
+      const t = now / 1000;
+      const dx = x - 12.5;
+      const dy = (y - 2.5) * 2; 
+      const dist = Math.hypot(dx, dy);
+      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+      // Base speed was 120. Slowed down by 20% is 96.
+      // Fluctuation of 15% of 96 is 14.4.
+      // Integral of (96 + 14.4 * cos(t)) is 96 * t + 14.4 * sin(t)
+      const timeEffect = 96 * t + 14.4 * Math.sin(t);
+      const baseAngle = angle + dist * 25 - timeEffect;
+      
+      // Spread speed was 4. Slow down by 20% is 3.2.
+      // Fluctuation of 15% is 0.48.
+      const spreadTimeEffect = 3.2 * t + 0.48 * Math.sin(t);
+      const spread = 45 + Math.sin(spreadTimeEffect - dist * 0.8) * 45;
+
+      return { h: baseAngle + spread, m: baseAngle - spread + 180, ringWeight: 1 };
+    };
+
+    let wDigits = [10, 10, 10, 10, 10, 10];
+    let weatherData = { temp: 0, rain: 0 };
+
+    const updateWeatherDigits = () => {
+      let tVal = isNaN(weatherData.temp) ? 0 : Math.round(weatherData.temp);
+      let rVal = isNaN(weatherData.rain) ? 0 : Math.round(weatherData.rain);
+      
+      let tAbs = Math.abs(tVal).toString();
+      let rStr = rVal.toString();
+
+      if (tVal < 0) {
+        if (tAbs.length === 1) {
+          wDigits[0] = 15; wDigits[1] = +tAbs[0]; wDigits[2] = 11;
+        } else {
+          wDigits[0] = 15; wDigits[1] = +tAbs[0]; wDigits[2] = +tAbs[1];
+        }
+      } else {
+        if (tAbs.length === 1) {
+          wDigits[0] = 10; wDigits[1] = +tAbs[0]; wDigits[2] = 11;
+        } else if (tAbs.length === 2) {
+          wDigits[0] = +tAbs[0]; wDigits[1] = +tAbs[1]; wDigits[2] = 11;
+        } else {
+          wDigits[0] = +tAbs[0]; wDigits[1] = +tAbs[1]; wDigits[2] = +tAbs[2];
+        }
+      }
+
+      if (rStr.length === 1) {
+        wDigits[3] = 10; wDigits[4] = +rStr[0]; wDigits[5] = 14;
+      } else if (rStr.length === 2) {
+        wDigits[3] = +rStr[0]; wDigits[4] = +rStr[1]; wDigits[5] = 14;
+      } else {
+        wDigits[3] = +rStr[0]; wDigits[4] = +rStr[1]; wDigits[5] = +rStr[2];
+      }
+    };
+
+    const WEATHER_LAT = 38.81;
+    const WEATHER_LON = -94.53;
+    const WEATHER_TIMEZONE = 'America/Chicago';
+
+    const fetchWeather = async () => {
+      try {
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}&current_weather=true&hourly=precipitation_probability&temperature_unit=fahrenheit&timezone=${encodeURIComponent(WEATHER_TIMEZONE)}`);
+        const data = await res.json();
+        const temp = data.current_weather.temperature;
+        
+        const currentIso = data.current_weather.time;
+        const currentHour = currentIso.split(':')[0] + ':00';
+        const hourIdx = data.hourly.time.indexOf(currentHour);
+        const rain = hourIdx !== -1 ? data.hourly.precipitation_probability[hourIdx] : 0;
+        
+        weatherData = { temp, rain };
+        updateWeatherDigits();
+      } catch (e) {
+        console.error('Weather fetch failed', e);
+      }
+    };
+
+    fetchWeather();
+    setInterval(fetchWeather, 15 * 60 * 1000);
+
+    const weatherIdle = (x, y, now) => {
+      let dIdx = -1;
+      let cIdx = -1;
+      let isColon = false;
+      
+      if (x >= 0 && x <= 3) { dIdx = 0; cIdx = y * 4 + (x - 0); }
+      else if (x >= 4 && x <= 7) { dIdx = 1; cIdx = y * 4 + (x - 4); }
+      else if (x === 8) { isColon = true; }
+      else if (x >= 9 && x <= 12) { dIdx = 2; cIdx = y * 4 + (x - 9); }
+      else if (x >= 13 && x <= 16) { dIdx = 3; cIdx = y * 4 + (x - 13); }
+      else if (x === 17) { isColon = true; }
+      else if (x >= 18 && x <= 21) { dIdx = 4; cIdx = y * 4 + (x - 18); }
+      else if (x >= 22 && x <= 25) { dIdx = 5; cIdx = y * 4 + (x - 22); }
+
+      if (isColon) return { h: 225, m: 225, ringWeight: 1 };
+
+      const c = digits[wDigits[dIdx]][cIdx];
+      if (c.isIdle) return { h: 225, m: 225, ringWeight: 1 };
+      return { h: c.h, m: c.m, ringWeight: 1 };
+    };
+
+    let currentMode = 'auto';
+    let modeStartTime = 0;
+
+    document.querySelectorAll('.controls button').forEach(btn => {
+      btn.addEventListener('click', e => {
+        document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        currentMode = e.target.id.replace('btn-', '');
+        modeStartTime = Date.now();
+      });
+    });
+
+    const idleState = ms => {
+      if (currentMode !== 'auto') {
+        if (currentMode === 'time') return null;
+        const elapsed = ms - modeStartTime;
+        const fadeIn = Math.min(1, elapsed / IDLE_FADE);
+        return { strength: fadeIn, animType: currentMode };
+      }
+
+      const pos = ms % CYCLE;
+      if (pos >= RING_LENGTH) return null;
+      const fadeIn = Math.min(1, pos / IDLE_FADE);
+      const fadeOut = pos > RING_LENGTH - IDLE_FADE ? (RING_LENGTH - pos) / IDLE_FADE : 1;
+      
+      const cycleId = Math.floor(ms / CYCLE);
+      const hash = Math.sin(cycleId * 12.9898) * 43758.5453;
+      const rand = hash - Math.floor(hash);
+      
+      let animType;
+      if (rand < 0.25) animType = 'cloud';
+      else if (rand < 0.5) animType = 'neon';
+      else if (rand < 0.75) animType = 'vortex';
+      else animType = 'weather';
+
+      return { strength: Math.min(fadeIn, fadeOut), animType };
+    };
+
+    const lerp = (a, b, f) => a + ((b - a + 540) % 360 - 180) * f;
+
+    const timeAngles = (el, dA, dB, pSec, nSec, steppedT) => {
+      if (el.dataset.colon !== undefined) {
+        if (el.dataset.colonFill !== undefined) {
+          const spinA = pSec * 6 + 270;
+          const spinB = nSec * 6 + 270;
+          return {
+            h: lerp(spinA, spinB, steppedT),
+            m: lerp(spinA, spinB, steppedT)
+          };
+        }
+        const slot = +el.dataset.colonSlot;
+        const evenA = pSec % 2 === 0;
+        const evenB = nSec % 2 === 0;
+        const posA = evenA ? (slot === 1 ? NW : SE) : H;
+        const posB = evenB ? (slot === 1 ? NW : SE) : H;
+        return {
+          h: lerp(posA.h, posB.h, steppedT),
+          m: lerp(posA.m, posB.m, steppedT)
+        };
+      }
+
+      const dIdx = +el.dataset.digitIdx;
+      const cIdx = +el.dataset.clockIdx;
+      const cA = digits[dA[dIdx]][cIdx];
+      const cB = digits[dB[dIdx]][cIdx];
+      const hA = cA.isIdle ? pSec * 6 + 270 : cA.h;
+      const mA = cA.isIdle ? pSec * 6 + 270 : cA.m;
+      const hB = cB.isIdle ? nSec * 6 + 270 : cB.h;
+      const mB = cB.isIdle ? nSec * 6 + 270 : cB.m;
+      return {
+        h: lerp(hA, hB, steppedT),
+        m: lerp(mA, mB, steppedT)
+      };
+    };
+
+    const padDigits = d => d.toTimeString().slice(0, 8).replace(/:/g, '').split('').map(Number);
+
+    let frozenAngles = null;
+    let frozenCycle = -1;
+
+    const captureFrozen = ms => {
+      const tick = ms - (ms % 1000);
+      const base = new Date(tick);
+      const d = padDigits(base);
+      const sec = base.getSeconds();
+      const snap = new Map();
+      app.querySelectorAll('.clock').forEach(el => {
+        snap.set(el, timeAngles(el, d, d, sec, sec, 1));
+      });
+      return snap;
+    };
+
+    let id;
+    const update = () => {
+      const TICK = 1000;
+      const MOVE = 200;
+      const now = Date.now();
+      const cycleId = Math.floor(now / CYCLE);
+      const inRing = currentMode !== 'auto' ? (currentMode !== 'time') : (now % CYCLE < RING_LENGTH);
+      const idle = idleState(now);
+
+      if (inRing) {
+        const targetCycle = currentMode !== 'auto' ? currentMode : cycleId;
+        if (frozenCycle !== targetCycle) {
+          frozenAngles = captureFrozen(now);
+          frozenCycle = targetCycle;
+        }
+      } else {
+        frozenAngles = null;
+        frozenCycle = -1;
+      }
+
+      const baseMs = now - (now % TICK);
+      const base = new Date(baseMs);
+      const next = new Date(baseMs + TICK);
+      const elapsed = now - baseMs;
+      const steppedT = elapsed >= MOVE ? 1 : Math.floor(elapsed / 20) / 10;
+      const pSec = base.getSeconds();
+      const nSec = next.getSeconds();
+      const dA = padDigits(base);
+      const dB = padDigits(next);
+
+      app.style.setProperty('--hour-val', base.getHours());
+      app.style.setProperty('--minute-val', base.getMinutes());
+      app.style.setProperty('--second-val', pSec + steppedT);
+
+      app.querySelectorAll('.clock').forEach(el => {
+        const time = inRing ? frozenAngles.get(el) : timeAngles(el, dA, dB, pSec, nSec, steppedT);
+        let h = time.h;
+        let m = time.m;
+
+        if (idle) {
+          let play;
+          if (idle.animType === 'cloud') play = cloudIdle(+el.dataset.gridX, +el.dataset.gridY, now);
+          else if (idle.animType === 'neon') play = neonIdle(+el.dataset.gridX, +el.dataset.gridY, now);
+          else if (idle.animType === 'weather') play = weatherIdle(+el.dataset.gridX, +el.dataset.gridY, now);
+          else play = vortexIdle(+el.dataset.gridX, +el.dataset.gridY, now);
+            
+          if (play.ringWeight > 0) {
+            const blend = idle.strength;
+            h = lerp(time.h, play.h, blend);
+            m = lerp(time.m, play.m, blend);
+          }
+        }
+
+        el.style.setProperty('--hour-angle', h);
+        el.style.setProperty('--minute-angle', m);
+      });
+
+      id = requestAnimationFrame(update);
+    };
+
+    id = requestAnimationFrame(update);
+  </script>
+</body>
+</html>
