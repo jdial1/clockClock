@@ -4,171 +4,27 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Clock</title>
-  <style>
-    body {
-      padding: 0;
-      margin: 0;
-      background-color: #121212;
-      overflow: hidden;
-    }
-
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-    }
-
-    .app {
-      --clock-size: 3vw;
-      --gap: calc(var(--clock-size) * 0.05);
-      font-family: sans-serif;
-      text-align: center;
-      display: grid;
-      grid-template-columns: repeat(28, var(--clock-size));
-      grid-template-rows: repeat(8, var(--clock-size));
-      gap: var(--gap);
-      align-items: center;
-      justify-content: center;
-      align-content: center;
-      height: 100vh;
-      position: relative;
-    }
-
-    .app::before {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: calc(var(--clock-size) * 30);
-      height: calc(var(--clock-size) * 10);
-      background: rgba(255, 255, 255, 0.02);
-      filter: blur(calc(var(--clock-size) * 1.5));
-      border-radius: calc(var(--clock-size) * 4);
-      z-index: -1;
-      pointer-events: none;
-    }
-
-    .clock {
-      --w: 60%;
-      --h: 3px;
-      position: relative;
-      width: var(--clock-size);
-      height: var(--clock-size);
-      border-radius: 50%;
-      flex-shrink: 0;
-      border: 2px solid #1a1a1a;
-      background: linear-gradient(225deg, #151515 10%, #1d1d1d);
-      box-shadow: -2px 2px 6px #0b0b0b,
-                   2px -2px 6px #232323;
-      --time-val: 0;
-      --time-max: 60;
-    }
-
-    .clock[data-digit-idx="0"], .clock[data-digit-idx="1"] {
-      --time-val: var(--hour-val);
-      --time-max: 24;
-    }
-
-    .clock[data-digit-idx="2"], .clock[data-digit-idx="3"] {
-      --time-val: var(--minute-val);
-      --time-max: 60;
-    }
-
-    .clock[data-digit-idx="4"], .clock[data-digit-idx="5"], .clock[data-colon] {
-      --time-val: var(--second-val);
-      --time-max: 60;
-    }
-
-    .clock::before,
-    .clock::after {
-      position: absolute;
-      content: '';
-      top: calc(50% - var(--h) * 0.5);
-      left: 50%;
-      transform-origin: 0% 50%;
-      width: var(--w);
-      height: var(--h);
-      border-radius: 9999px;
-      transform: rotate(calc(var(--angle) * 1deg));
-    }
-
-    .clock::before {
-      --angle: var(--hour-angle);
-      background: hsl(calc((mod(var(--angle), 180) * 2 + (var(--time-val) / var(--time-max)) * 360) * 1deg) 100% 62%);
-    }
-
-    .clock::after {
-      --angle: var(--minute-angle);
-      background: hsl(calc((mod(var(--angle), 180) * 2 + (var(--time-val) / var(--time-max)) * 360) * 1deg) 100% 62%);
-    }
-
-    .controls {
-      position: fixed;
-      bottom: 20px;
-      left: 0;
-      width: 100%;
-      display: flex;
-      justify-content: center;
-      gap: 15px;
-      z-index: 10;
-      opacity: 0.05;
-      transition: opacity 0.5s ease 5s;
-    }
-
-    .controls:hover {
-      opacity: 1;
-      transition: opacity 0.2s ease 0s;
-    }
-
-    .controls button {
-      background: #1a1a1a;
-      color: #888;
-      border: 2px solid #333;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-family: sans-serif;
-      font-size: 14px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .controls button:hover {
-      background: #2a2a2a;
-      color: #fff;
-      border-color: #555;
-    }
-
-    .controls button.active {
-      background: #222;
-      color: #fff;
-      border-color: #00ffcc;
-      box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
-    }
-
-    .controls button.excluded {
-      opacity: 0.4;
-      border-color: #222;
-      text-decoration: line-through;
-    }
-
-    .controls button.current-playing {
-      text-decoration: underline;
-      text-underline-offset: 4px;
-      text-decoration-color: #00ffcc;
-      text-decoration-thickness: 2px;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="root"></div>
   <div class="controls">
-    <button id="btn-auto" class="active">Auto (15s/2s)</button>
-    <button id="btn-time">Time</button>
-    <button id="btn-cloud">Clouds & Rain</button>
-    <button id="btn-weather">Weather</button>
-    <button id="btn-neon">Neon Pulse</button>
-    <button id="btn-vortex">Vortex</button>
+    <div class="controls-auto">
+      <button id="btn-auto" class="active">Auto (15s/2s)</button>
+    </div>
+    <div class="controls-groups">
+      <div class="control-group">
+        <button id="btn-time">Time</button>
+        <button id="btn-date">Date</button>
+        <button id="btn-weather">Weather</button>
+      </div>
+      <div class="control-group">
+        <button id="btn-cloud">Clouds & Rain</button>
+        <button id="btn-neon">Neon Pulse</button>
+        <button id="btn-vortex">Vortex</button>
+        <button id="btn-pulse">Geometric Pulse</button>
+      </div>
+    </div>
   </div>
   <script>
     const H =  { h: 0,   m: 180 },
@@ -207,6 +63,8 @@
     const app = document.createElement('div');
     app.className = 'app';
     
+    const clocksCache = [];
+
     for (let y = 0; y < 8; y++) {
       for (let x = 0; x < 28; x++) {
         const clock = document.createElement('div');
@@ -252,6 +110,31 @@
           }
         }
         app.appendChild(clock);
+
+        // Cache parsed DOM data to avoid querying `dataset` in the render loop
+        const dx = x - 13.5;
+        const dy = y - 3.5;
+        const hexDist = Math.max(Math.abs(dx), Math.abs(dx * 0.5) + Math.abs(dy * 0.866));
+        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+        const hexAngle = Math.round(angle / 60) * 60;
+        const angleVortex = Math.atan2(dy * 2, dx) * 180 / Math.PI;
+        const distVortex = Math.hypot(dx, dy * 2);
+        const ringP = (y === 0) ? x : (x === 27) ? 28 + y : (y === 7) ? 56 + (27 - x) : 84 + (7 - y);
+
+        clocksCache.push({
+          el: clock,
+          lastH: null,  // Track last written Hour
+          lastM: null,  // Track last written Minute
+          out: { h: 0, m: 0, ringWeight: 0 }, // Reusable object for GC optimization
+          x, y,
+          dx, dy, hexDist, hexAngle, angleVortex, distVortex, ringP,
+          isRing,
+          digitIdx: clock.dataset.digitIdx !== undefined ? +clock.dataset.digitIdx : undefined,
+          clockIdx: clock.dataset.clockIdx !== undefined ? +clock.dataset.clockIdx : undefined,
+          isColon: clock.dataset.colon !== undefined,
+          colonSlot: clock.dataset.colonSlot !== undefined ? +clock.dataset.colonSlot : undefined,
+          colonFill: clock.dataset.colonFill !== undefined
+        });
       }
     }
     document.getElementById('root').appendChild(app);
@@ -260,189 +143,23 @@
     const TIME_LENGTH = 5000;
     const CYCLE = RING_LENGTH + TIME_LENGTH;
     const IDLE_FADE = 500;
+    const lerp = (a, b, f) => a + ((b - a + 540) % 360 - 180) * f;
 
-    const cloudIdle = (x, y, now) => {
-      const t = now / 1000;
-      
-      const inCloud = (cx, cy, r) => Math.hypot(x - cx, y - cy) <= r;
-      
-      let isCloud = false;
-      if (inCloud(6, 3, 1.5) || inCloud(8, 2.5, 2) || inCloud(10, 3, 1.5)) isCloud = true;
-      if (inCloud(18, 2.5, 1.8) || inCloud(21, 2, 2.2) || inCloud(23, 2.8, 1.5)) isCloud = true;
-      
-      if (y > 3.5) isCloud = false;
-
-      let baseH, baseM, weight = 0;
-
-      if (isCloud) {
-        baseH = H.h; baseM = H.m;
-        weight = 1;
-      } else {
-        const rainSpeed = 3;
-        const dropSpacing = 4;
-        const dropY = (t * rainSpeed + x * 1.3) % dropSpacing;
-        
-        const underCloud = (x >= 4 && x <= 12) || (x >= 16 && x <= 25);
-        
-        if (underCloud && y > 3.5 && Math.abs(y - dropY - 3.5) < 0.5) {
-          baseH = V.h; baseM = V.m;
-          weight = 1;
-        }
-      }
-
-      const bird1X = (t * 2) % 32 - 2;
-      const bird2X = (t * 1.5 + 10) % 32 - 2;
-      const bird3X = (t * 2.5 + 20) % 32 - 2;
-      
-      const isBird = (bx, by) => Math.abs(x - bx) < 0.5 && Math.abs(y - by) < 0.5;
-      
-      if (isBird(bird1X, 2) || isBird(bird2X, 1) || isBird(bird3X, 3)) {
-        const wiggle = Math.sin(now / 60) * 15;
-        baseH = H.h + wiggle;
-        baseM = H.m - wiggle;
-        weight = 1;
-      }
-
-      if (weight === 0) {
-        return { h: 225, m: 225, ringWeight: 1 };
-      }
-
-      return { h: baseH, m: baseM, ringWeight: weight };
-    };
-
-    const neonIdle = (x, y, now) => {
-      const t = now / 1000;
-      const dx = x - 13.5;
-      const dy = y - 3.5;
-      
-      const cx1 = Math.cos(t * 0.8) * 8;
-      const cy1 = Math.sin(t * 1.1) * 2;
-      const d1 = Math.hypot(dx - cx1, dy - cy1);
-      
-      const cx2 = Math.cos(t * 0.9 + Math.PI) * 8;
-      const cy2 = Math.sin(t * 1.3 + Math.PI) * 2;
-      const d2 = Math.hypot(dx - cx2, dy - cy2);
-      
-      const angle = (d1 - d2) * 30 + t * 50;
-      const spread = 45 + Math.sin(d1 * 0.5 + t * 2) * 45;
-      
-      return { h: angle + spread, m: angle - spread, ringWeight: 1 };
-    };
-
-    const vortexIdle = (x, y, now) => {
-      const t = now / 1000;
-      const dx = x - 13.5;
-      const dy = (y - 3.5) * 2; 
-      const dist = Math.hypot(dx, dy);
-      const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-
-      const timeEffect = 96 * t + 14.4 * Math.sin(t);
-      const baseAngle = angle + dist * 25 - timeEffect;
-      
-      const spreadTimeEffect = 3.2 * t + 0.48 * Math.sin(t);
-      const spread = 45 + Math.sin(spreadTimeEffect - dist * 0.8) * 45;
-
-      return { h: baseAngle + spread, m: baseAngle - spread + 180, ringWeight: 1 };
-    };
-
-    let wDigits = [10, 10, 10, 10, 10, 10];
-    let weatherData = { temp: 0, rain: 0 };
-
-    const updateWeatherDigits = () => {
-      let tVal = isNaN(weatherData.temp) ? 0 : Math.round(weatherData.temp);
-      let rVal = isNaN(weatherData.rain) ? 0 : Math.round(weatherData.rain);
-      
-      let tAbs = Math.abs(tVal).toString();
-      let rStr = rVal.toString();
-
-      if (tVal < 0) {
-        if (tAbs.length === 1) {
-          wDigits[0] = 15; wDigits[1] = +tAbs[0]; wDigits[2] = 11;
-        } else {
-          wDigits[0] = 15; wDigits[1] = +tAbs[0]; wDigits[2] = +tAbs[1];
-        }
-      } else {
-        if (tAbs.length === 1) {
-          wDigits[0] = 10; wDigits[1] = +tAbs[0]; wDigits[2] = 11;
-        } else if (tAbs.length === 2) {
-          wDigits[0] = +tAbs[0]; wDigits[1] = +tAbs[1]; wDigits[2] = 11;
-        } else {
-          wDigits[0] = +tAbs[0]; wDigits[1] = +tAbs[1]; wDigits[2] = +tAbs[2];
-        }
-      }
-
-      if (rStr.length === 1) {
-        wDigits[3] = 10; wDigits[4] = +rStr[0]; wDigits[5] = 14;
-      } else if (rStr.length === 2) {
-        wDigits[3] = +rStr[0]; wDigits[4] = +rStr[1]; wDigits[5] = 14;
-      } else {
-        wDigits[3] = +rStr[0]; wDigits[4] = +rStr[1]; wDigits[5] = +rStr[2];
-      }
-    };
-
-    const WEATHER_LAT = 38.81;
-    const WEATHER_LON = -94.53;
-    const WEATHER_TIMEZONE = 'America/Chicago';
-
-    const fetchWeather = async () => {
-      try {
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}&current_weather=true&hourly=precipitation_probability&temperature_unit=fahrenheit&timezone=${encodeURIComponent(WEATHER_TIMEZONE)}`);
-        const data = await res.json();
-        const temp = data.current_weather.temperature;
-        
-        const currentIso = data.current_weather.time;
-        const currentHour = currentIso.split(':')[0] + ':00';
-        const hourIdx = data.hourly.time.indexOf(currentHour);
-        const rain = hourIdx !== -1 ? data.hourly.precipitation_probability[hourIdx] : 0;
-        
-        weatherData = { temp, rain };
-        updateWeatherDigits();
-      } catch (e) {
-        console.error('Weather fetch failed', e);
-      }
-    };
-
-    fetchWeather();
-    setInterval(fetchWeather, 15 * 60 * 1000);
-
-    const weatherIdle = (x, y, now) => {
-      if (x === 0 || x === 27 || y === 0 || y === 7) {
-        let pos;
-        if (x === 0 && y === 0) pos = BR;
-        else if (x === 27 && y === 0) pos = BL;
-        else if (x === 0 && y === 7) pos = TR;
-        else if (x === 27 && y === 7) pos = TL;
-        else if (y === 0 || y === 7) pos = H;
-        else pos = V;
-        return { h: pos.h, m: pos.m, ringWeight: 1 };
-      }
-
-      const ix = x - 1;
-      const iy = y - 1;
-
-      let dIdx = -1;
-      let cIdx = -1;
-      let isColon = false;
-      
-      if (ix >= 0 && ix <= 3) { dIdx = 0; cIdx = iy * 4 + (ix - 0); }
-      else if (ix >= 4 && ix <= 7) { dIdx = 1; cIdx = iy * 4 + (ix - 4); }
-      else if (ix === 8) { isColon = true; }
-      else if (ix >= 9 && ix <= 12) { dIdx = 2; cIdx = iy * 4 + (ix - 9); }
-      else if (ix >= 13 && ix <= 16) { dIdx = 3; cIdx = iy * 4 + (ix - 13); }
-      else if (ix === 17) { isColon = true; }
-      else if (ix >= 18 && ix <= 21) { dIdx = 4; cIdx = iy * 4 + (ix - 18); }
-      else if (ix >= 22 && ix <= 25) { dIdx = 5; cIdx = iy * 4 + (ix - 22); }
-
-      if (isColon) return { h: 225, m: 225, ringWeight: 1 };
-
-      const c = digits[wDigits[dIdx]][cIdx];
-      if (c.isIdle) return { h: 225, m: 225, ringWeight: 1 };
-      return { h: c.h, m: c.m, ringWeight: 1 };
-    };
-
+    let lastGlobalH = -1;
+    let lastGlobalM = -1;
+    let lastGlobalS = -1;
+  </script>
+  <script src="animations/cloud.js"></script>
+  <script src="animations/neon.js"></script>
+  <script src="animations/vortex.js"></script>
+  <script src="animations/pulse.js"></script>
+  <script src="animations/weather.js"></script>
+  <script src="animations/date.js"></script>
+  <script src="animations/time.js"></script>
+  <script>
     let currentMode = 'auto';
     let modeStartTime = 0;
-    let autoRotation = ['cloud', 'weather', 'neon', 'vortex'];
+    let autoRotation = ['cloud', 'weather', 'date', 'neon', 'vortex', 'pulse'];
 
     const updateButtonStates = () => {
       document.querySelectorAll('.controls button').forEach(b => {
@@ -456,7 +173,7 @@
 
         if (m === 'auto' && currentMode !== 'auto') {
           b.classList.add('excluded');
-        } else if (currentMode === 'auto' && m !== 'auto' && m !== 'time') {
+        } else if (currentMode === 'auto' && m !== 'auto') {
           if (!autoRotation.includes(m)) {
             b.classList.add('excluded');
           } else {
@@ -479,7 +196,7 @@
           return;
         }
 
-        if (currentMode === 'auto' && clickedMode !== 'time') {
+        if (currentMode === 'auto') {
           if (autoRotation.includes(clickedMode)) {
             autoRotation = autoRotation.filter(m => m !== clickedMode);
           } else {
@@ -512,60 +229,11 @@
       const fadeIn = Math.min(1, pos / IDLE_FADE);
       const fadeOut = pos > RING_LENGTH - IDLE_FADE ? (RING_LENGTH - pos) / IDLE_FADE : 1;
       
-      const cycleId = Math.floor(ms / CYCLE);
+      const cycleId = ~~(ms / CYCLE);
       const animType = autoRotation[cycleId % autoRotation.length];
+      if (animType === 'time') return null;
 
       return { strength: Math.min(fadeIn, fadeOut), animType };
-    };
-
-    const lerp = (a, b, f) => a + ((b - a + 540) % 360 - 180) * f;
-
-    const timeAngles = (el, dA, dB, pSec, nSec, steppedT) => {
-      if (el.dataset.ring !== undefined) {
-        const x = +el.dataset.gridX;
-        const y = +el.dataset.gridY;
-        let pos;
-        if (x === 0 && y === 0) pos = BR;
-        else if (x === 27 && y === 0) pos = BL;
-        else if (x === 0 && y === 7) pos = TR;
-        else if (x === 27 && y === 7) pos = TL;
-        else if (y === 0 || y === 7) pos = H;
-        else pos = V;
-        return { h: pos.h, m: pos.m };
-      }
-
-      if (el.dataset.colon !== undefined) {
-        if (el.dataset.colonFill !== undefined) {
-          const spinA = pSec * 6 + 270;
-          const spinB = nSec * 6 + 270;
-          return {
-            h: lerp(spinA, spinB, steppedT),
-            m: lerp(spinA, spinB, steppedT)
-          };
-        }
-        const slot = +el.dataset.colonSlot;
-        const evenA = pSec % 2 === 0;
-        const evenB = nSec % 2 === 0;
-        const posA = evenA ? (slot % 2 !== 0 ? NW : SE) : H;
-        const posB = evenB ? (slot % 2 !== 0 ? NW : SE) : H;
-        return {
-          h: lerp(posA.h, posB.h, steppedT),
-          m: lerp(posA.m, posB.m, steppedT)
-        };
-      }
-
-      const dIdx = +el.dataset.digitIdx;
-      const cIdx = +el.dataset.clockIdx;
-      const cA = digits[dA[dIdx]][cIdx];
-      const cB = digits[dB[dIdx]][cIdx];
-      const hA = cA.isIdle ? pSec * 6 + 270 : cA.h;
-      const mA = cA.isIdle ? pSec * 6 + 270 : cA.m;
-      const hB = cB.isIdle ? nSec * 6 + 270 : cB.h;
-      const mB = cB.isIdle ? nSec * 6 + 270 : cB.m;
-      return {
-        h: lerp(hA, hB, steppedT),
-        m: lerp(mA, mB, steppedT)
-      };
     };
 
     const padDigits = d => d.toTimeString().slice(0, 8).replace(/:/g, '').split('').map(Number);
@@ -578,10 +246,10 @@
       const base = new Date(tick);
       const d = padDigits(base);
       const sec = base.getSeconds();
-      const snap = new Map();
-      app.querySelectorAll('.clock').forEach(el => {
-        snap.set(el, timeAngles(el, d, d, sec, sec, 1));
-      });
+      const snap = new Array(clocksCache.length);
+      for (let i = 0; i < clocksCache.length; i++) {
+        snap[i] = timeAngles(clocksCache[i], d, d, sec, sec, 1);
+      }
       return snap;
     };
 
@@ -590,7 +258,7 @@
       const TICK = 1000;
       const MOVE = 500;
       const now = Date.now();
-      const cycleId = Math.floor(now / CYCLE);
+      const cycleId = ~~(now / CYCLE);
       const inRing = currentMode !== 'auto' ? (currentMode !== 'time') : (now % CYCLE < RING_LENGTH);
       const idle = idleState(now);
 
@@ -624,38 +292,88 @@
       const base = new Date(baseMs);
       const next = new Date(baseMs + TICK);
       const elapsed = now - baseMs;
-      const steppedT = elapsed >= MOVE ? 1 : Math.floor(elapsed / (MOVE / 10)) / 10;
+      const steppedT = elapsed >= MOVE ? 1 : ~~(elapsed / (MOVE / 10)) / 10;
       const pSec = base.getSeconds();
       const nSec = next.getSeconds();
       const dA = padDigits(base);
       const dB = padDigits(next);
 
-      app.style.setProperty('--hour-val', base.getHours());
-      app.style.setProperty('--minute-val', base.getMinutes());
-      app.style.setProperty('--second-val', pSec + steppedT);
+      // DIRTY CHECK: Only write global CSS variables when they actually change
+      const currentGlobalH = base.getHours();
+      const currentGlobalM = base.getMinutes();
+      const currentGlobalS = ~~((pSec + steppedT) * 100 + 0.5) / 100;
+      if (currentGlobalH !== lastGlobalH) {
+        app.style.setProperty('--hour-val', currentGlobalH);
+        lastGlobalH = currentGlobalH;
+      }
+      if (currentGlobalM !== lastGlobalM) {
+        app.style.setProperty('--minute-val', currentGlobalM);
+        lastGlobalM = currentGlobalM;
+      }
+      if (currentGlobalS !== lastGlobalS) {
+        app.style.setProperty('--second-val', currentGlobalS);
+        lastGlobalS = currentGlobalS;
+      }
 
-      app.querySelectorAll('.clock').forEach(el => {
-        const time = inRing ? frozenAngles.get(el) : timeAngles(el, dA, dB, pSec, nSec, steppedT);
+      // PRE-CALCULATE FRAME MATH: Do time-based trigonometry ONCE per frame
+      const t = now / 1000;
+      const frameData = {
+        t,
+        neonCx1: Math.cos(t * 0.8) * 8, neonCy1: Math.sin(t * 1.1) * 2,
+        neonCx2: Math.cos(t * 0.9 + Math.PI) * 8, neonCy2: Math.sin(t * 1.3 + Math.PI) * 2,
+        cloudBird1X: (t * 2) % 32 - 2,
+        cloudBird2X: (t * 1.5 + 10) % 32 - 2,
+        cloudBird3X: (t * 2.5 + 20) % 32 - 2,
+        cloudDropYBase: t * 3,
+        cloudWiggle: Math.sin(now / 60) * 15,
+        dateT2: t * 2,
+        pulseT: t * 1.25,
+        vortexTimeEffect: 96 * t + 14.4 * Math.sin(t),
+        vortexSpreadTimeEffect: 3.2 * t + 0.48 * Math.sin(t)
+      };
+
+      // Resolve the active idle function once per frame
+      let activeIdleAnim = null;
+      if (idle) {
+        const anims = {
+          cloud: cloudIdle, neon: neonIdle, weather: weatherIdle, 
+          date: dateIdle, pulse: pulseIdle, vortex: vortexIdle
+        };
+        activeIdleAnim = anims[idle.animType];
+      }
+
+      // Iterate over the cached array instead of querying the DOM
+      for (let i = 0; i < clocksCache.length; i++) {
+        const data = clocksCache[i];
+        const time = inRing ? frozenAngles[i] : timeAngles(data, dA, dB, pSec, nSec, steppedT);
         let h = time.h;
         let m = time.m;
 
-        if (idle) {
-          let play;
-          if (idle.animType === 'cloud') play = cloudIdle(+el.dataset.gridX, +el.dataset.gridY, now);
-          else if (idle.animType === 'neon') play = neonIdle(+el.dataset.gridX, +el.dataset.gridY, now);
-          else if (idle.animType === 'weather') play = weatherIdle(+el.dataset.gridX, +el.dataset.gridY, now);
-          else play = vortexIdle(+el.dataset.gridX, +el.dataset.gridY, now);
-            
-          if (play.ringWeight > 0) {
+        if (idle && activeIdleAnim) {
+          // Pass the reusable 'out' object to avoid allocating new objects in memory
+          activeIdleAnim(data, frameData);
+
+          if (data.out.ringWeight > 0) {
             const blend = idle.strength;
-            h = lerp(time.h, play.h, blend);
-            m = lerp(time.m, play.m, blend);
+            h = lerp(time.h, data.out.h, blend);
+            m = lerp(time.m, data.out.m, blend);
           }
         }
 
-        el.style.setProperty('--hour-angle', h);
-        el.style.setProperty('--minute-angle', m);
-      });
+        // Round values to 2 decimal places to avoid floating point jitter triggering writes
+        h = ~~(h * 100 + (h >= 0 ? 0.5 : -0.5)) / 100;
+        m = ~~(m * 100 + (m >= 0 ? 0.5 : -0.5)) / 100;
+
+        // DIRTY CHECK: Only write to the DOM if the angle has materially changed
+        if (h !== data.lastH) {
+          data.el.style.setProperty('--hour-angle', h);
+          data.lastH = h;
+        }
+        if (m !== data.lastM) {
+          data.el.style.setProperty('--minute-angle', m);
+          data.lastM = m;
+        }
+      }
 
       id = requestAnimationFrame(update);
     };
