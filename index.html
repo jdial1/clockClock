@@ -588,7 +588,7 @@
     let id;
     const update = () => {
       const TICK = 1000;
-      const MOVE = 200;
+      const MOVE = 500;
       const now = Date.now();
       const cycleId = Math.floor(now / CYCLE);
       const inRing = currentMode !== 'auto' ? (currentMode !== 'time') : (now % CYCLE < RING_LENGTH);
@@ -624,7 +624,7 @@
       const base = new Date(baseMs);
       const next = new Date(baseMs + TICK);
       const elapsed = now - baseMs;
-      const steppedT = elapsed >= MOVE ? 1 : Math.floor(elapsed / 20) / 10;
+      const steppedT = elapsed >= MOVE ? 1 : Math.floor(elapsed / (MOVE / 10)) / 10;
       const pSec = base.getSeconds();
       const nSec = next.getSeconds();
       const dA = padDigits(base);
