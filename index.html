@@ -161,6 +161,15 @@
     let modeStartTime = 0;
     let autoRotation = ['cloud', 'weather', 'date', 'neon', 'vortex', 'pulse'];
 
+    const flagMatch = window.location.pathname.match(/\/([1-7])\/?$/) || 
+                      window.location.hash.match(/#([1-7])\b/) || 
+                      window.location.search.match(/\?([1-7])\b/);
+    if (flagMatch) {
+      const modeMap = ['time', 'date', 'weather', 'cloud', 'neon', 'vortex', 'pulse'];
+      currentMode = modeMap[parseInt(flagMatch[1]) - 1];
+      document.querySelector('.controls').style.display = 'none';
+    }
+
     const updateButtonStates = () => {
       document.querySelectorAll('.controls button').forEach(b => {
         const m = b.id.replace('btn-', '');
