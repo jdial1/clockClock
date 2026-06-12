@@ -60,66 +60,176 @@
 
     const COLON_DOTS = new Set([1, 2, 3, 4]);
 
+    const GRID_COLS = 28;
+    const GRID_ROWS = 8;
+
     const app = document.createElement('div');
     app.className = 'app';
-    
-    const clocksCache = [];
 
-    for (let y = 0; y < 8; y++) {
-      for (let x = 0; x < 28; x++) {
-        const clock = document.createElement('div');
-        clock.className = 'clock';
-        clock.dataset.gridX = x;
-        clock.dataset.gridY = y;
-        
+    const canvas = document.createElement('canvas');
+    app.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+
+    const clocksCache = [];
+    let clockSize = 0;
+    let gap = 0;
+    let gridWidth = 0;
+    let gridHeight = 0;
+    let faceSize = 0;
+    let dpr = 1;
+    let faceCanvas = null;
+
+    const mod = (n, m) => ((n % m) + m) % m;
+
+    const timeValFor = (data, hourVal, minuteVal, secondVal) => {
+      const d = data.digitIdx;
+      if (d === 0 || d === 1 || (data.isColon && data.colonGroup === 0)) return hourVal;
+      if (d === 2 || d === 3 || (data.isColon && data.colonGroup === 1)) return minuteVal;
+      if (d === 4 || d === 5) return secondVal;
+      return 0;
+    };
+
+    const handHue = (angle, timeVal) => mod(mod(angle, 180) * 2 + (timeVal / 60) * 360, 360);
+
+    const buildFaceCanvas = () => {
+      const pad = 10;
+      faceSize = clockSize + pad * 2;
+      faceCanvas = document.createElement('canvas');
+      faceCanvas.width = faceSize * dpr;
+      faceCanvas.height = faceSize * dpr;
+      const fctx = faceCanvas.getContext('2d');
+      fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const cx = faceSize / 2;
+      const cy = faceSize / 2;
+      const r = clockSize / 2;
+      const grad = fctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+
+      grad.addColorStop(0.1, '#151515');
+      grad.addColorStop(1, '#1d1d1d');
+
+      fctx.save();
+      fctx.shadowColor = '#0b0b0b';
+      fctx.shadowBlur = 6;
+      fctx.shadowOffsetX = -2;
+      fctx.shadowOffsetY = 2;
+      fctx.beginPath();
+      fctx.arc(cx, cy, r, 0, Math.PI * 2);
+      fctx.fillStyle = '#151515';
+      fctx.fill();
+      fctx.restore();
+
+      fctx.save();
+      fctx.shadowColor = '#232323';
+      fctx.shadowBlur = 6;
+      fctx.shadowOffsetX = 2;
+      fctx.shadowOffsetY = -2;
+      fctx.beginPath();
+      fctx.arc(cx, cy, r, 0, Math.PI * 2);
+      fctx.fillStyle = '#151515';
+      fctx.fill();
+      fctx.restore();
+
+      fctx.beginPath();
+      fctx.arc(cx, cy, r, 0, Math.PI * 2);
+      fctx.fillStyle = grad;
+      fctx.fill();
+      fctx.strokeStyle = '#1a1a1a';
+      fctx.lineWidth = 2;
+      fctx.stroke();
+    };
+
+    const updateClockPositions = () => {
+      for (let i = 0; i < clocksCache.length; i++) {
+        const data = clocksCache[i];
+        data.cx = data.x * (clockSize + gap) + clockSize / 2;
+        data.cy = data.y * (clockSize + gap) + clockSize / 2;
+      }
+    };
+
+    const resizeCanvas = () => {
+      dpr = window.devicePixelRatio || 1;
+      clockSize = window.innerWidth * 0.03;
+      gap = clockSize * 0.05;
+      gridWidth = GRID_COLS * clockSize + (GRID_COLS - 1) * gap;
+      gridHeight = GRID_ROWS * clockSize + (GRID_ROWS - 1) * gap;
+
+      canvas.width = gridWidth * dpr;
+      canvas.height = gridHeight * dpr;
+      canvas.style.width = `${gridWidth}px`;
+      canvas.style.height = `${gridHeight}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      app.style.setProperty('--clock-size', `${clockSize}px`);
+      updateClockPositions();
+      buildFaceCanvas();
+    };
+
+    const drawHand = (cx, cy, angleDeg, timeVal) => {
+      const rad = angleDeg * Math.PI / 180;
+      const len = clockSize * 0.45;
+      const thick = Math.max(3, clockSize * 0.1);
+
+      ctx.strokeStyle = `hsl(${handHue(angleDeg, timeVal)}, 100%, 62%)`;
+      ctx.lineWidth = thick;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(rad) * len, cy + Math.sin(rad) * len);
+      ctx.stroke();
+    };
+
+    for (let y = 0; y < GRID_ROWS; y++) {
+      for (let x = 0; x < GRID_COLS; x++) {
         const isRing = x === 0 || x === 27 || y === 0 || y === 7;
-        if (isRing) {
-          clock.dataset.ring = '';
-        }
-        
         const ix = x - 1;
         const iy = y - 1;
-        
+
+        let digitIdx;
+        let clockIdx;
+        let isColon = false;
+        let colonGroup;
+        let colonSlot;
+        let colonFill = false;
+
         if (ix >= 0 && ix <= 3) {
-          clock.dataset.digitIdx = 0;
-          if (!isRing) clock.dataset.clockIdx = iy * 4 + (ix - 0);
+          digitIdx = 0;
+          if (!isRing) clockIdx = iy * 4 + ix;
         } else if (ix >= 4 && ix <= 7) {
-          clock.dataset.digitIdx = 1;
-          if (!isRing) clock.dataset.clockIdx = iy * 4 + (ix - 4);
+          digitIdx = 1;
+          if (!isRing) clockIdx = iy * 4 + (ix - 4);
         } else if (ix === 8) {
-          clock.dataset.colon = '';
-          clock.dataset.colonGroup = 0;
+          isColon = true;
+          colonGroup = 0;
           if (!isRing) {
-            clock.dataset.colonSlot = iy;
-            if (!COLON_DOTS.has(iy)) clock.dataset.colonFill = '';
+            colonSlot = iy;
+            if (!COLON_DOTS.has(iy)) colonFill = true;
           }
         } else if (ix >= 9 && ix <= 12) {
-          clock.dataset.digitIdx = 2;
-          if (!isRing) clock.dataset.clockIdx = iy * 4 + (ix - 9);
+          digitIdx = 2;
+          if (!isRing) clockIdx = iy * 4 + (ix - 9);
         } else if (ix >= 13 && ix <= 16) {
-          clock.dataset.digitIdx = 3;
-          if (!isRing) clock.dataset.clockIdx = iy * 4 + (ix - 13);
+          digitIdx = 3;
+          if (!isRing) clockIdx = iy * 4 + (ix - 13);
         } else if (ix === 17) {
-          clock.dataset.colon = '';
-          clock.dataset.colonGroup = 1;
+          isColon = true;
+          colonGroup = 1;
           if (!isRing) {
-            clock.dataset.colonSlot = iy;
-            if (!COLON_DOTS.has(iy)) clock.dataset.colonFill = '';
+            colonSlot = iy;
+            if (!COLON_DOTS.has(iy)) colonFill = true;
           }
         } else if (ix >= 18 && ix <= 21) {
-          clock.dataset.digitIdx = 4;
-          if (!isRing) clock.dataset.clockIdx = iy * 4 + (ix - 18);
+          digitIdx = 4;
+          if (!isRing) clockIdx = iy * 4 + (ix - 18);
         } else if (ix >= 22 && ix <= 25) {
-          clock.dataset.digitIdx = 5;
-          if (!isRing) clock.dataset.clockIdx = iy * 4 + (ix - 22);
+          digitIdx = 5;
+          if (!isRing) clockIdx = iy * 4 + (ix - 22);
         } else if (ix < 0) {
-          clock.dataset.digitIdx = 0;
-        } else if (ix > 25) {
-          clock.dataset.digitIdx = 5;
+          digitIdx = 0;
+        } else {
+          digitIdx = 5;
         }
-        app.appendChild(clock);
 
-        // Cache parsed DOM data to avoid querying `dataset` in the render loop
         const dx = x - 13.5;
         const dy = y - 3.5;
         const hexDist = Math.max(Math.abs(dx), Math.abs(dx * 0.5) + Math.abs(dy * 0.866));
@@ -130,32 +240,23 @@
         const ringP = (y === 0) ? x : (x === 27) ? 28 + y : (y === 7) ? 56 + (27 - x) : 84 + (7 - y);
 
         clocksCache.push({
-          el: clock,
-          lastH: null,  // Track last written Hour
-          lastM: null,  // Track last written Minute
-          out: { h: 0, m: 0, ringWeight: 0 }, // Reusable object for GC optimization
-          x, y,
+          out: { h: 0, m: 0, ringWeight: 0 },
+          x, y, cx: 0, cy: 0,
           dx, dy, hexDist, hexAngle, angleVortex, distVortex, ringP,
-          isRing,
-          digitIdx: clock.dataset.digitIdx !== undefined ? +clock.dataset.digitIdx : undefined,
-          clockIdx: clock.dataset.clockIdx !== undefined ? +clock.dataset.clockIdx : undefined,
-          isColon: clock.dataset.colon !== undefined,
-          colonSlot: clock.dataset.colonSlot !== undefined ? +clock.dataset.colonSlot : undefined,
-          colonFill: clock.dataset.colonFill !== undefined
+          isRing, digitIdx, clockIdx, isColon, colonGroup, colonSlot, colonFill
         });
       }
     }
+
     document.getElementById('root').appendChild(app);
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
     const RING_LENGTH = 15000;
     const TIME_LENGTH = 5000;
     const CYCLE = RING_LENGTH + TIME_LENGTH;
     const IDLE_FADE = 500;
     const lerp = (a, b, f) => a + ((b - a + 540) % 360 - 180) * f;
-
-    let lastGlobalH = -1;
-    let lastGlobalM = -1;
-    let lastGlobalS = -1;
   </script>
   <script src="animations/cloud.js"></script>
   <script src="animations/neon.js"></script>
@@ -319,25 +420,10 @@
       const nSec = next.getSeconds();
       const dA = padDigits(base);
       const dB = padDigits(next);
+      const hourVal = base.getHours();
+      const minuteVal = base.getMinutes();
+      const secondVal = ~~((pSec + steppedT) * 100 + 0.5) / 100;
 
-      // DIRTY CHECK: Only write global CSS variables when they actually change
-      const currentGlobalH = base.getHours();
-      const currentGlobalM = base.getMinutes();
-      const currentGlobalS = ~~((pSec + steppedT) * 100 + 0.5) / 100;
-      if (currentGlobalH !== lastGlobalH) {
-        app.style.setProperty('--hour-val', currentGlobalH);
-        lastGlobalH = currentGlobalH;
-      }
-      if (currentGlobalM !== lastGlobalM) {
-        app.style.setProperty('--minute-val', currentGlobalM);
-        lastGlobalM = currentGlobalM;
-      }
-      if (currentGlobalS !== lastGlobalS) {
-        app.style.setProperty('--second-val', currentGlobalS);
-        lastGlobalS = currentGlobalS;
-      }
-
-      // PRE-CALCULATE FRAME MATH: Do time-based trigonometry ONCE per frame
       const t = now / 1000;
       const frameData = {
         t,
@@ -364,7 +450,9 @@
         activeIdleAnim = anims[idle.animType];
       }
 
-      // Iterate over the cached array instead of querying the DOM
+      ctx.clearRect(0, 0, gridWidth, gridHeight);
+      const faceOffset = faceSize / 2;
+
       for (let i = 0; i < clocksCache.length; i++) {
         const data = clocksCache[i];
         const time = inRing ? frozenAngles[i] : timeAngles(data, dA, dB, pSec, nSec, steppedT, now);
@@ -372,7 +460,6 @@
         let m = time.m;
 
         if (idle && activeIdleAnim) {
-          // Pass the reusable 'out' object to avoid allocating new objects in memory
           activeIdleAnim(data, frameData);
 
           if (data.out.ringWeight > 0) {
@@ -382,19 +469,11 @@
           }
         }
 
-        // Round values to 2 decimal places to avoid floating point jitter triggering writes
-        h = ~~(h * 100 + (h >= 0 ? 0.5 : -0.5)) / 100;
-        m = ~~(m * 100 + (m >= 0 ? 0.5 : -0.5)) / 100;
+        const timeVal = timeValFor(data, hourVal, minuteVal, secondVal);
 
-        // DIRTY CHECK: Only write to the DOM if the angle has materially changed
-        if (h !== data.lastH) {
-          data.el.style.setProperty('--hour-angle', h);
-          data.lastH = h;
-        }
-        if (m !== data.lastM) {
-          data.el.style.setProperty('--minute-angle', m);
-          data.lastM = m;
-        }
+        ctx.drawImage(faceCanvas, data.cx - faceOffset, data.cy - faceOffset, faceSize, faceSize);
+        drawHand(data.cx, data.cy, h, timeVal);
+        drawHand(data.cx, data.cy, m, timeVal);
       }
 
       id = requestAnimationFrame(update);

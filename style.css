@@ -13,18 +13,16 @@ body {
 
     .app {
       --clock-size: 3vw;
-      --gap: calc(var(--clock-size) * 0.05);
       font-family: sans-serif;
-      text-align: center;
-      display: grid;
-      grid-template-columns: repeat(28, var(--clock-size));
-      grid-template-rows: repeat(8, var(--clock-size));
-      gap: var(--gap);
+      display: flex;
       align-items: center;
       justify-content: center;
-      align-content: center;
       height: 100vh;
       position: relative;
+    }
+
+    .app canvas {
+      display: block;
     }
 
     .app::before {
@@ -40,62 +38,6 @@ body {
       border-radius: calc(var(--clock-size) * 4);
       z-index: -1;
       pointer-events: none;
-    }
-
-    .clock {
-      --w: 60%;
-      --h: 3px;
-      position: relative;
-      width: var(--clock-size);
-      height: var(--clock-size);
-      border-radius: 50%;
-      flex-shrink: 0;
-      border: 2px solid #1a1a1a;
-      background: linear-gradient(225deg, #151515 10%, #1d1d1d);
-      box-shadow: -2px 2px 6px #0b0b0b,
-                   2px -2px 6px #232323;
-      --time-val: 0;
-      --time-max: 60;
-    }
-
-    .clock[data-digit-idx="0"], .clock[data-digit-idx="1"], .clock[data-colon-group="0"] {
-      --time-val: var(--hour-val);
-      --time-max: 24;
-    }
-
-    .clock[data-digit-idx="2"], .clock[data-digit-idx="3"], .clock[data-colon-group="1"] {
-      --time-val: var(--minute-val);
-      --time-max: 60;
-    }
-
-    .clock[data-digit-idx="4"], .clock[data-digit-idx="5"] {
-      --time-val: var(--second-val);
-      --time-max: 60;
-    }
-
-    .clock::before,
-    .clock::after {
-      position: absolute;
-      content: '';
-      top: calc(50% - var(--h) * 0.5);
-      left: 50%;
-      transform-origin: 0% 50%;
-      width: var(--w);
-      height: var(--h);
-      border-radius: 9999px;
-      transform: rotate(calc(var(--angle) * 1deg));
-      will-change: transform;
-      backface-visibility: hidden;
-    }
-
-    .clock::before {
-      --angle: var(--hour-angle);
-      background: hsl(calc((mod(var(--angle), 180) * 2 + (var(--time-val) / var(--time-max)) * 360) * 1deg) 100% 62%);
-    }
-
-    .clock::after {
-      --angle: var(--minute-angle);
-      background: hsl(calc((mod(var(--angle), 180) * 2 + (var(--time-val) / var(--time-max)) * 360) * 1deg) 100% 62%);
     }
 
     .controls {
