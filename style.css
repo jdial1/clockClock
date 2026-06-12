@@ -58,17 +58,17 @@ body {
       --time-max: 60;
     }
 
-    .clock[data-digit-idx="0"], .clock[data-digit-idx="1"] {
+    .clock[data-digit-idx="0"], .clock[data-digit-idx="1"], .clock[data-colon-group="0"] {
       --time-val: var(--hour-val);
       --time-max: 24;
     }
 
-    .clock[data-digit-idx="2"], .clock[data-digit-idx="3"] {
+    .clock[data-digit-idx="2"], .clock[data-digit-idx="3"], .clock[data-colon-group="1"] {
       --time-val: var(--minute-val);
       --time-max: 60;
     }
 
-    .clock[data-digit-idx="4"], .clock[data-digit-idx="5"], .clock[data-colon] {
+    .clock[data-digit-idx="4"], .clock[data-digit-idx="5"] {
       --time-val: var(--second-val);
       --time-max: 60;
     }

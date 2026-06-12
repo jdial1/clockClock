@@ -75,39 +75,47 @@
         const isRing = x === 0 || x === 27 || y === 0 || y === 7;
         if (isRing) {
           clock.dataset.ring = '';
-        } else {
-          const ix = x - 1;
-          const iy = y - 1;
-          
-          if (ix >= 0 && ix <= 3) {
-            clock.dataset.digitIdx = 0;
-            clock.dataset.clockIdx = iy * 4 + (ix - 0);
-          } else if (ix >= 4 && ix <= 7) {
-            clock.dataset.digitIdx = 1;
-            clock.dataset.clockIdx = iy * 4 + (ix - 4);
-          } else if (ix === 8) {
-            clock.dataset.colon = '';
-            clock.dataset.colonGroup = 0;
+        }
+        
+        const ix = x - 1;
+        const iy = y - 1;
+        
+        if (ix >= 0 && ix <= 3) {
+          clock.dataset.digitIdx = 0;
+          if (!isRing) clock.dataset.clockIdx = iy * 4 + (ix - 0);
+        } else if (ix >= 4 && ix <= 7) {
+          clock.dataset.digitIdx = 1;
+          if (!isRing) clock.dataset.clockIdx = iy * 4 + (ix - 4);
+        } else if (ix === 8) {
+          clock.dataset.colon = '';
+          clock.dataset.colonGroup = 0;
+          if (!isRing) {
             clock.dataset.colonSlot = iy;
             if (!COLON_DOTS.has(iy)) clock.dataset.colonFill = '';
-          } else if (ix >= 9 && ix <= 12) {
-            clock.dataset.digitIdx = 2;
-            clock.dataset.clockIdx = iy * 4 + (ix - 9);
-          } else if (ix >= 13 && ix <= 16) {
-            clock.dataset.digitIdx = 3;
-            clock.dataset.clockIdx = iy * 4 + (ix - 13);
-          } else if (ix === 17) {
-            clock.dataset.colon = '';
-            clock.dataset.colonGroup = 1;
-            clock.dataset.colonSlot = iy;
-            if (!COLON_DOTS.has(iy)) clock.dataset.colonFill = '';
-          } else if (ix >= 18 && ix <= 21) {
-            clock.dataset.digitIdx = 4;
-            clock.dataset.clockIdx = iy * 4 + (ix - 18);
-          } else if (ix >= 22 && ix <= 25) {
-            clock.dataset.digitIdx = 5;
-            clock.dataset.clockIdx = iy * 4 + (ix - 22);
           }
+        } else if (ix >= 9 && ix <= 12) {
+          clock.dataset.digitIdx = 2;
+          if (!isRing) clock.dataset.clockIdx = iy * 4 + (ix - 9);
+        } else if (ix >= 13 && ix <= 16) {
+          clock.dataset.digitIdx = 3;
+          if (!isRing) clock.dataset.clockIdx = iy * 4 + (ix - 13);
+        } else if (ix === 17) {
+          clock.dataset.colon = '';
+          clock.dataset.colonGroup = 1;
+          if (!isRing) {
+            clock.dataset.colonSlot = iy;
+            if (!COLON_DOTS.has(iy)) clock.dataset.colonFill = '';
+          }
+        } else if (ix >= 18 && ix <= 21) {
+          clock.dataset.digitIdx = 4;
+          if (!isRing) clock.dataset.clockIdx = iy * 4 + (ix - 18);
+        } else if (ix >= 22 && ix <= 25) {
+          clock.dataset.digitIdx = 5;
+          if (!isRing) clock.dataset.clockIdx = iy * 4 + (ix - 22);
+        } else if (ix < 0) {
+          clock.dataset.digitIdx = 0;
+        } else if (ix > 25) {
+          clock.dataset.digitIdx = 5;
         }
         app.appendChild(clock);
 
@@ -262,7 +270,7 @@
       const sec = base.getSeconds();
       const snap = new Array(clocksCache.length);
       for (let i = 0; i < clocksCache.length; i++) {
-        snap[i] = timeAngles(clocksCache[i], d, d, sec, sec, 1);
+        snap[i] = timeAngles(clocksCache[i], d, d, sec, sec, 1, tick);
       }
       return snap;
     };
@@ -359,7 +367,7 @@
       // Iterate over the cached array instead of querying the DOM
       for (let i = 0; i < clocksCache.length; i++) {
         const data = clocksCache[i];
-        const time = inRing ? frozenAngles[i] : timeAngles(data, dA, dB, pSec, nSec, steppedT);
+        const time = inRing ? frozenAngles[i] : timeAngles(data, dA, dB, pSec, nSec, steppedT, now);
         let h = time.h;
         let m = time.m;
 

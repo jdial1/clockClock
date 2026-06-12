@@ -1,4 +1,4 @@
-const timeAngles = (data, dA, dB, pSec, nSec, steppedT) => {
+const timeAngles = (data, dA, dB, pSec, nSec, steppedT, now = Date.now()) => {
   if (data.isRing) {
     const { x, y } = data;
     let pos;
@@ -21,13 +21,23 @@ const timeAngles = (data, dA, dB, pSec, nSec, steppedT) => {
       };
     }
     const slot = data.colonSlot;
-    const evenA = pSec % 2 === 0;
-    const evenB = nSec % 2 === 0;
-    const posA = evenA ? (slot % 2 !== 0 ? NW : SE) : H;
-    const posB = evenB ? (slot % 2 !== 0 ? NW : SE) : H;
+    const secIdx = Math.floor(now / 1000);
+    const isEvenSec = secIdx % 2 === 0;
+    
+    const secElapsed = now % 1000;
+    const cSteppedT = secElapsed >= 500 ? 1 : Math.floor(secElapsed / 50) / 10;
+
+    const NW_wiggle = { h: 60, m: 120 };
+    const SE_wiggle = { h: 240, m: 300 };
+    
+    const basePos = slot % 2 !== 0 ? NW : SE;
+    const wigglePos = slot % 2 !== 0 ? NW_wiggle : SE_wiggle;
+
+    const posA = isEvenSec ? basePos : wigglePos;
+    const posB = !isEvenSec ? basePos : wigglePos;
     return {
-      h: lerp(posA.h, posB.h, steppedT),
-      m: lerp(posA.m, posB.m, steppedT)
+      h: lerp(posA.h, posB.h, cSteppedT),
+      m: lerp(posA.m, posB.m, cSteppedT)
     };
   }
 
