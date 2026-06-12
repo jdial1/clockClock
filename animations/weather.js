@@ -3,7 +3,7 @@ let weatherData = { temp: 0, rain: 0 };
 
 const WEATHER_LAT = 38.81;
 const WEATHER_LON = -94.53;
-const WEATHER_TIMEZONE = 'America/Chicago';
+const WEATHER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'auto';
 
 const updateWeatherDigits = () => {
   let tVal = isNaN(weatherData.temp) ? 0 : Math.round(weatherData.temp);
