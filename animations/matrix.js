@@ -91,15 +91,21 @@ const matrixIdle = (data, frameData) => {
 
   if (cell.brightness > 0) {
     if (cell.isHead) {
-      data.out.color = '#E5FFE5';
+      data.out.colorH = 120;
+      data.out.colorS = 100;
+      data.out.colorL = 95;
+      data.out.color = null;
     } else {
-      // Rich color decay from bright electric green to deep digital moss green
-      const lightness = Math.floor(4 + cell.brightness * 40);
-      const saturation = Math.floor(60 + cell.brightness * 40);
-      data.out.color = `hsl(128, ${saturation}%, ${lightness}%)`;
+      data.out.colorH = 128;
+      data.out.colorS = Math.floor(60 + cell.brightness * 40);
+      data.out.colorL = Math.floor(4 + cell.brightness * 40);
+      data.out.color = null;
     }
   } else {
-    data.out.color = '#000c02';
+    data.out.colorH = 130;
+    data.out.colorS = 100;
+    data.out.colorL = 2;
+    data.out.color = null;
   }
 
   data.out.ringWeight = 1;

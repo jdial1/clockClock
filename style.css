@@ -33,8 +33,12 @@ body {
       transform: translate(-50%, -50%);
       width: calc(var(--clock-size) * 30);
       height: calc(var(--clock-size) * 10);
-      background: var(--glow-color, rgba(0, 255, 204, 0.015));
-      filter: blur(calc(var(--clock-size) * 1.5));
+      background: radial-gradient(
+        ellipse 55% 45% at center,
+        var(--glow-color, rgba(0, 255, 204, 0.12)) 0%,
+        var(--glow-color, rgba(0, 255, 204, 0.04)) 40%,
+        transparent 72%
+      );
       border-radius: calc(var(--clock-size) * 4);
       z-index: -1;
       pointer-events: none;

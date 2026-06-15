@@ -11,10 +11,10 @@ const vortexIdle = (data, frameData) => {
 
   data.out.h = baseAngle + spread;
   data.out.m = baseAngle - spread + 180;
-  // White-hot accretion disk core shifting out to cool cosmic indigo on the periphery
   const normDist = Math.min(1, distVortex / 14);
-  const hue = 290 - normDist * 100;
-  const lightness = Math.max(10, 80 - normDist * 65);
-  data.out.color = `hsl(${hue}, 90%, ${lightness}%)`;
+  data.out.colorH = 290 - normDist * 100;
+  data.out.colorS = 90;
+  data.out.colorL = Math.max(10, 80 - normDist * 65);
+  data.out.color = null;
   data.out.ringWeight = 1;
 };
