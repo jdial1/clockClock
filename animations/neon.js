@@ -7,5 +7,9 @@ const neonIdle = (data, frameData) => {
   
   data.out.h = angle + spread;
   data.out.m = angle - spread;
+  const colorCycle = (angle + frameData.t * 30) % 360;
+  // Chromatic transition between neon magenta (300) and electric cyan (190)
+  const hue = 190 + Math.abs(Math.sin(colorCycle * Math.PI / 180)) * 110;
+  data.out.color = `hsl(${hue}, 100%, 60%)`;
   data.out.ringWeight = 1;
 };

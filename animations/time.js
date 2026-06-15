@@ -21,23 +21,15 @@ const timeAngles = (data, dA, dB, pSec, nSec, steppedT, now = Date.now()) => {
       };
     }
     const slot = data.colonSlot;
-    const secIdx = Math.floor(now / 1000);
-    const isEvenSec = secIdx % 2 === 0;
-    
     const secElapsed = now % 1000;
-    const cSteppedT = secElapsed >= 500 ? 1 : Math.floor(secElapsed / 50) / 10;
 
-    const NW_wiggle = { h: 60, m: 120 };
-    const SE_wiggle = { h: 240, m: 300 };
-    
-    const basePos = slot % 2 !== 0 ? NW : SE;
-    const wigglePos = slot % 2 !== 0 ? NW_wiggle : SE_wiggle;
-
-    const posA = isEvenSec ? basePos : wigglePos;
-    const posB = !isEvenSec ? basePos : wigglePos;
+    // Decay spring recoil: starts strong on the second transition, then dissipates
+    const tW = secElapsed / 450;
+    const wobble = tW < 1 ? Math.exp(-tW * 5.5) * Math.sin(tW * Math.PI * 3.5) * 22 : 0;
+    const base = slot % 2 !== 0 ? NW : SE;
     return {
-      h: lerp(posA.h, posB.h, cSteppedT),
-      m: lerp(posA.m, posB.m, cSteppedT)
+      h: base.h + wobble,
+      m: base.m - wobble
     };
   }
 

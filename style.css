@@ -33,11 +33,12 @@ body {
       transform: translate(-50%, -50%);
       width: calc(var(--clock-size) * 30);
       height: calc(var(--clock-size) * 10);
-      background: rgba(255, 255, 255, 0.02);
+      background: var(--glow-color, rgba(0, 255, 204, 0.015));
       filter: blur(calc(var(--clock-size) * 1.5));
       border-radius: calc(var(--clock-size) * 4);
       z-index: -1;
       pointer-events: none;
+      transition: background 1.5s cubic-bezier(0.25, 1, 0.5, 1);
     }
 
     .controls {
@@ -50,7 +51,7 @@ body {
       align-items: center;
       gap: 10px;
       z-index: 10;
-      opacity: 0.05;
+      opacity: 0;
       transition: opacity 0.5s ease 5s;
     }
 
@@ -60,44 +61,55 @@ body {
     }
 
     .controls-auto {
-      width: min(520px, calc(100% - 40px));
+      width: min(600px, calc(100% - 40px));
+      display: flex;
     }
 
     .controls-auto button {
-      width: 100%;
+      flex: 1;
       padding: 10px 24px;
     }
 
     .controls-groups {
       display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
       gap: 12px;
+      width: 100%;
     }
 
     .control-group {
       display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
+      width: min(600px, calc(100% - 40px));
       gap: 8px;
     }
 
     .controls button {
+      flex: 1;
       background: #1a1a1a;
       color: #888;
       border: 2px solid #333;
-      padding: 8px 16px;
+      padding: 8px 0;
       border-radius: 20px;
       font-family: sans-serif;
       font-size: 14px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), background 0.2s, border-color 0.2s, box-shadow 0.2s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .controls button:hover {
       background: #2a2a2a;
       color: #fff;
       border-color: #555;
+      transform: translateY(-1.5px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .controls button:active {
+      transform: translateY(0.5px);
     }
 
     .controls button.active {
@@ -105,6 +117,10 @@ body {
       color: #fff;
       border-color: #00ffcc;
       box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
+    }
+
+    .controls button.active:hover {
+      box-shadow: 0 4px 15px rgba(0, 255, 204, 0.3);
     }
 
     .controls button.excluded {

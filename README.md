@@ -7,7 +7,7 @@ A creative, animated digital clock built entirely with vanilla HTML, CSS, and Ja
 - **Time Display**: Shows the current time using synchronized, animated clock hands.
 - **Multiple Visual Modes**:
   - **Time**: Standard time display.
-  - **Clouds & Rain**: An ambient animation of clouds and falling rain.
+  - **Ridgeline**: An ambient animation of a ridgeline plot (joyplot).
   - **Weather**: Displays the current temperature and precipitation probability.
   - **Neon Pulse**: A mesmerizing, pulsing geometric animation.
   - **Vortex**: A swirling vortex animation.

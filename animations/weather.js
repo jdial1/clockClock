@@ -82,8 +82,10 @@ const weatherIdle = (data, frameData) => {
 
   const c = digits[wDigits[data.digitIdx]][data.clockIdx];
   if (c.isIdle) {
-    data.out.h = 225;
-    data.out.m = 225;
+    // Ambient wind breeze: gentle atmospheric current rippling across background elements
+    const wind = Math.sin(frameData.t * 0.7 + data.x * 0.15 + data.y * 0.1) * 12;
+    data.out.h = 225 + wind;
+    data.out.m = 225 - wind;
     data.out.ringWeight = 1;
     return;
   }

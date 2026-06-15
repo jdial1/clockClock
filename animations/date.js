@@ -47,8 +47,10 @@ const dateIdle = (data, frameData) => {
 
   const c = digits[dDigits[data.digitIdx]][data.clockIdx];
   if (c.isIdle) {
-    data.out.h = 225;
-    data.out.m = 225;
+    // Meditative mechanical escapement sway for the astronomical calendar background
+    const gearSway = Math.sin(frameData.t * 0.45 + (data.x - data.y) * 0.12) * 8;
+    data.out.h = 225 + gearSway;
+    data.out.m = 225 + gearSway;
     data.out.ringWeight = 1;
     return;
   }
