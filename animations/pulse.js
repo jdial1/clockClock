@@ -1,6 +1,5 @@
 const pulseIdle = (data, frameData) => {
-  const heartbeat = frameData.pulseT + Math.sin(frameData.pulseT * 2) * 0.25;
-  const wave = Math.sin(data.hexDist * 0.75 - heartbeat);
+  const wave = Math.sin(data.hexDist * 0.75 - frameData.pulseHeartbeat);
   const blend = Math.pow((wave + 1) * 0.5, 3);
   
   data.out.h = data.hexAngle + 90 * blend;

@@ -3,12 +3,15 @@ const hash = (n) => {
   return x - Math.floor(x);
 };
 
+let lastRidgeT = -1;
+const heightCache = new Float32Array(32); // Covers columns -1 to 30
+
 const ridgelineIdle = (data, frameData) => {
   const t = frameData.t;
   const x = data.x;
   const y = data.y;
   
-  const getH = (px) => {
+  const getHColumn = (px, t, y) => {
     let h = 0;
     for (let i = 0; i < 3; i++) {
       const seed = y * 10 + i + 1;
@@ -51,9 +54,16 @@ const ridgelineIdle = (data, frameData) => {
     return h * envelope;
   };
 
-  const h_center = getH(x);
-  const h_left = getH(x - 1);
-  const h_right = getH(x + 1);
+  if (t !== lastRidgeT) {
+    lastRidgeT = t;
+    for (let col = -1; col <= 29; col++) {
+      heightCache[col + 1] = getHColumn(col, t, y);
+    }
+  }
+
+  const h_center = heightCache[x + 1];
+  const h_left = heightCache[x];
+  const h_right = heightCache[x + 2];
   
   // Left hand points to left neighbor
   const dy_left = h_center - h_left;

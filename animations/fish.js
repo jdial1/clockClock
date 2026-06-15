@@ -20,7 +20,9 @@ const CHAR_MAP = {
 
 let bubbles = [];
 let lastFishT = 0;
-let fishGrid = [];
+
+// Instantiate our structures once globally to prevent garbage collection thrashing
+const fishGrid = Array(28).fill(0).map(() => Array(8).fill(null));
 
 let crabEncounter = {
   active: false,
@@ -34,7 +36,12 @@ const updateFishes = (t) => {
   if (dt > 0.1) dt = 0.1; // Cap dt if tab was inactive
   lastFishT = t;
   
-  fishGrid = Array(28).fill(0).map(() => Array(8).fill(null));
+  // Nullify elements in-place instead of re-instantiating sub-arrays
+  for (let x = 0; x < 28; x++) {
+    for (let y = 0; y < 8; y++) {
+      fishGrid[x][y] = null;
+    }
+  }
   
   // Spawn crab encounter
   if (!crabEncounter.active && Math.random() < 0.005) {

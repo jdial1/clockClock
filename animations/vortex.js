@@ -1,7 +1,7 @@
 const vortexIdle = (data, frameData) => {
   // Orbit the gravitational epicenter dynamically to simulate fluid vortex precession
-  const px = data.dx - Math.sin(frameData.t * 0.5) * 1.2;
-  const py = data.dy - Math.cos(frameData.t * 0.3) * 0.5;
+  const px = data.dx - frameData.vortexPrecessX;
+  const py = data.dy - frameData.vortexPrecessY;
   const distVortex = Math.hypot(px, py * 2);
   const angleVortex = Math.atan2(py * 2, px) * 180 / Math.PI;
 
