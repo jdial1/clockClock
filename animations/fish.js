@@ -20,19 +20,42 @@ const CRAB_WALK_B = [">@==@<", "\\ /\\ /"];
 const CRAB_DANCE_A = ["v@==@v", "\\    /"];
 const CRAB_DANCE_B = ["^@==@^", "/    \\"];
 
+const BUBBLE_COLOR = { colorH: 200, colorS: 100, colorL: 80 };
+
 let bubbles = [];
+let bubblePool = [];
 let lastFishT = 0;
 
 const fishGrid = Array(28).fill(0).map(() => Array(8).fill(null));
-const fishCellPool = Array.from({ length: 256 }, () => ({ color: '', char: '' }));
+const fishCellPool = Array.from({ length: 256 }, () => ({ colorH: 0, colorS: 0, colorL: 0, char: '' }));
 let fishCellPoolIndex = 0;
 
-const takeFishCell = (color, char) => {
-  const cell = fishCellPool[fishCellPoolIndex++];
-  cell.color = color;
+const takeFishCell = (colorH, colorS, colorL, char) => {
+  const idx = fishCellPoolIndex++ % fishCellPool.length;
+  const cell = fishCellPool[idx];
+  cell.colorH = colorH;
+  cell.colorS = colorS;
+  cell.colorL = colorL;
   cell.char = char;
   return cell;
 };
+
+const takeBubble = (x, vy) => {
+  const b = bubblePool.pop() || { x: 0, y: 0, vy: 0 };
+  b.x = x;
+  b.y = 8;
+  b.vy = vy;
+  return b;
+};
+
+const releaseBubble = (i) => {
+  bubblePool.push(bubbles[i]);
+  bubbles[i] = bubbles[bubbles.length - 1];
+  bubbles.pop();
+};
+
+const crabLeft = { x: -6, y: 6, vx: 1.5, colorH: 0, colorS: 100, colorL: 63, isLeft: true, danceOffset: 0 };
+const crabRight = { x: 28, y: 6, vx: -1.5, colorH: 0, colorS: 100, colorL: 56, isLeft: false, danceOffset: Math.PI };
 
 let crabEncounter = {
   active: false,
@@ -56,18 +79,15 @@ const updateFishes = (t) => {
   if (!crabEncounter.active && Math.random() < 0.005) {
     crabEncounter.active = true;
     crabEncounter.state = 'walking_in';
-    crabEncounter.crabs = [
-      { x: -6, y: 6, vx: 1.5, color: '#FF4444', isLeft: true, danceOffset: 0 },
-      { x: 28, y: 6, vx: -1.5, color: '#FF2222', isLeft: false, danceOffset: Math.PI }
-    ];
+    crabLeft.x = -6;
+    crabLeft.y = 6;
+    crabRight.x = 28;
+    crabRight.y = 6;
+    crabEncounter.crabs = [crabLeft, crabRight];
   }
 
   if (Math.random() < 0.05) {
-    bubbles.push({
-      x: Math.floor(Math.random() * 28),
-      y: 8,
-      vy: -(1 + Math.random() * 1.5)
-    });
+    bubbles.push(takeBubble(Math.floor(Math.random() * 28), -(1 + Math.random() * 1.5)));
   }
 
   if (crabEncounter.active) {
@@ -119,7 +139,7 @@ const updateFishes = (t) => {
             const gx = ix + col;
             const gy = iy + r;
             if (gx >= 0 && gx < 28 && gy >= 0 && gy < 8) {
-              fishGrid[gx][gy] = takeFishCell(c.color, char);
+              fishGrid[gx][gy] = takeFishCell(c.colorH, c.colorS, c.colorL, char);
             }
           }
         }
@@ -134,12 +154,12 @@ const updateFishes = (t) => {
     const by = Math.floor(b.y);
 
     if (by < -1) {
-      bubbles.splice(i, 1);
+      releaseBubble(i);
       continue;
     }
 
     if (bx >= 0 && bx < 28 && by >= 0 && by < 8 && !fishGrid[bx][by]) {
-      fishGrid[bx][by] = takeFishCell('#88CCFF', 'o');
+      fishGrid[bx][by] = takeFishCell(BUBBLE_COLOR.colorH, BUBBLE_COLOR.colorS, BUBBLE_COLOR.colorL, 'o');
     }
   }
 };
@@ -161,8 +181,10 @@ const fishIdle = (data, frameData) => {
   if (cell && CHAR_MAP[cell.char]) {
     targetH = CHAR_MAP[cell.char].h;
     targetM = CHAR_MAP[cell.char].m;
-    data.out.color = cell.color;
-    data.out.colorH = data.out.colorS = data.out.colorL = null;
+    data.out.colorH = cell.colorH;
+    data.out.colorS = cell.colorS;
+    data.out.colorL = cell.colorL;
+    data.out.color = null;
   } else {
     const wave = Math.sin(data.x * 0.3 + frameData.t * 1.5) + Math.cos(data.y * 0.4 + frameData.t * 1.2);
     targetH = 45 + wave * 25;

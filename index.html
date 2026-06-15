@@ -28,6 +28,30 @@
       </div>
     </div>
   </div>
+  <div id="perf-stats" class="perf-stats" aria-hidden="true">
+    <div class="perf-stats-grid">
+      <span class="perf-stats-label">FPS</span>
+      <span class="perf-stats-val perf-fps-p10">—</span>
+      <span class="perf-stats-val perf-fps-avg">—</span>
+      <span class="perf-stats-val perf-fps-p90">—</span>
+      <span class="perf-stats-label">Recalc/s</span>
+      <span class="perf-stats-val perf-recalc-p10">—</span>
+      <span class="perf-stats-val perf-recalc-avg">—</span>
+      <span class="perf-stats-val perf-recalc-p90">—</span>
+      <span class="perf-stats-label">Hands/s</span>
+      <span class="perf-stats-val perf-hands-p10">—</span>
+      <span class="perf-stats-val perf-hands-avg">—</span>
+      <span class="perf-stats-val perf-hands-p90">—</span>
+      <span class="perf-stats-label">Memory</span>
+      <span class="perf-stats-val perf-mem-p10">—</span>
+      <span class="perf-stats-val perf-mem-avg">—</span>
+      <span class="perf-stats-val perf-mem-p90">—</span>
+      <span class="perf-stats-label">Data</span>
+      <span class="perf-stats-val perf-data-p10">—</span>
+      <span class="perf-stats-val perf-data-avg">—</span>
+      <span class="perf-stats-val perf-data-p90">—</span>
+    </div>
+  </div>
   <script>
     const H =  { h: 0,   m: 180 },
           V =  { h: 270, m: 90 },
@@ -97,9 +121,14 @@
     const buildFaceCanvas = () => {
       const pad = 10;
       faceSize = Math.round(clockSize + pad * 2);
+      const prevFace = faceCanvas;
       faceCanvas = document.createElement('canvas');
       faceCanvas.width = faceSize * dpr;
       faceCanvas.height = faceSize * dpr;
+      if (prevFace) {
+        prevFace.width = 0;
+        prevFace.height = 0;
+      }
       const fctx = faceCanvas.getContext('2d');
       fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -159,6 +188,7 @@
         const data = clocksCache[i];
         data.cx = Math.round(data.x * (clockSize + gap) + clockSize / 2);
         data.cy = Math.round(data.y * (clockSize + gap) + clockSize / 2);
+        data.drawKeyH = undefined;
       }
     };
 
@@ -179,10 +209,14 @@
       updateClockPositions();
       buildFaceCanvas();
 
-      // Pre-render the entire static grid background to a cached layout canvas
+      const prevGridBg = gridBgCanvas;
       gridBgCanvas = document.createElement('canvas');
       gridBgCanvas.width = canvas.width;
       gridBgCanvas.height = canvas.height;
+      if (prevGridBg) {
+        prevGridBg.width = 0;
+        prevGridBg.height = 0;
+      }
       const bgCtx = gridBgCanvas.getContext('2d');
       bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const faceOffset = faceSize / 2;
@@ -273,31 +307,35 @@
     const lerp = (a, b, f) => a + ((b - a + 540) % 360 - 180) * f;
 
     const quantizeHue = (h) => (Math.round(h / 2) * 2) % 360;
-    const packColor = (h, s, l) => (((quantizeHue(h) / 2) << 16) | ((s & 0xff) << 8) | (l & 0xff)) >>> 0;
+    const quantizeByte = (n) => Math.round(n / 4) * 4 & 0xff;
+    const packColor = (h, s, l) => (((quantizeHue(h) / 2) << 16) | (quantizeByte(s) << 8) | quantizeByte(l)) >>> 0;
     const COLOR_KEY_WHITE = 0xffffff;
-    const hslStrokeCache = new Map();
     const handBuckets = new Map();
+    const bucketArrayPool = [];
 
     const strokeStyleForKey = (key) => {
       if (key === COLOR_KEY_WHITE) return 'rgba(255, 255, 255, 0.8)';
-      let style = hslStrokeCache.get(key);
-      if (!style) {
-        const h = ((key >> 16) & 0xff) * 2;
-        const s = (key >> 8) & 0xff;
-        const l = key & 0xff;
-        style = `hsl(${h}, ${s}%, ${l}%)`;
-        hslStrokeCache.set(key, style);
-      }
-      return style;
+      const h = ((key >> 16) & 0xff) * 2;
+      const s = (key >> 8) & 0xff;
+      const l = key & 0xff;
+      return `hsl(${h}, ${s}%, ${l}%)`;
     };
 
     const addHandSeg = (key, cx, cy, ex, ey) => {
       let segs = handBuckets.get(key);
       if (!segs) {
-        segs = [];
+        segs = bucketArrayPool.pop() || [];
         handBuckets.set(key, segs);
       }
       segs.push(cx, cy, ex, ey);
+    };
+
+    const resetHandBuckets = () => {
+      for (const segs of handBuckets.values()) {
+        segs.length = 0;
+        bucketArrayPool.push(segs);
+      }
+      handBuckets.clear();
     };
 
     const parsedColorCache = [0, 0, 0];
@@ -323,6 +361,17 @@
     };
 
     const mixHue = (base, target, blend) => base + ((target - base + 540) % 360 - 180) * blend;
+
+    const SIN_LUT = new Float32Array(3600);
+    const COS_LUT = new Float32Array(3600);
+    for (let i = 0; i < 3600; i++) {
+      const rad = i * Math.PI / 1800;
+      SIN_LUT[i] = Math.sin(rad);
+      COS_LUT[i] = Math.cos(rad);
+    }
+    const trigIdx = (deg) => ((Math.round(deg * 10) % 3600) + 3600) % 3600;
+    const sinDeg = (deg) => SIN_LUT[trigIdx(deg)];
+    const cosDeg = (deg) => COS_LUT[trigIdx(deg)];
   </script>
   <script src="animations/ridgeline.js"></script>
   <script src="animations/neon.js"></script>
@@ -427,17 +476,32 @@
       return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
     };
 
-    const padDigitsInto = (out, d) => {
-      const h = d.getHours();
-      const m = d.getMinutes();
-      const s = d.getSeconds();
-      out[0] = (h / 10) | 0;
-      out[1] = h % 10;
-      out[2] = (m / 10) | 0;
-      out[3] = m % 10;
-      out[4] = (s / 10) | 0;
-      out[5] = s % 10;
+    const padDigitsFromEpoch = (out, epochSec) => {
+      const secMod = epochSec % 60;
+      const minMod = ((epochSec / 60) | 0) % 60;
+      const hourMod = ((epochSec / 3600) | 0) % 24;
+      out[0] = (hourMod / 10) | 0;
+      out[1] = hourMod % 10;
+      out[2] = (minMod / 10) | 0;
+      out[3] = minMod % 10;
+      out[4] = (secMod / 10) | 0;
+      out[5] = secMod % 10;
     };
+
+    const frameData = {
+      t: 0,
+      neonCx1: 0, neonCy1: 0,
+      neonCx2: 0, neonCy2: 0,
+      dateT2: 0,
+      pulseT: 0,
+      pulseHeartbeat: 0,
+      vortexPrecessX: 0,
+      vortexPrecessY: 0,
+      vortexTimeEffect: 0,
+      vortexSpreadTimeEffect: 0
+    };
+
+    let frozenSnap = null;
 
     const idleState = ms => {
       if (currentMode !== 'auto') {
@@ -470,24 +534,156 @@
       const tick = ms - (ms % 1000);
       const sec = (tick / 1000) | 0;
       const secMod = sec % 60;
-      const minMod = ((sec / 60) | 0) % 60;
-      const hourMod = ((sec / 3600) | 0) % 24;
-      dA[0] = (hourMod / 10) | 0;
-      dA[1] = hourMod % 10;
-      dA[2] = (minMod / 10) | 0;
-      dA[3] = minMod % 10;
-      dA[4] = (secMod / 10) | 0;
-      dA[5] = secMod % 10;
-      const snap = new Array(clocksCache.length);
+      padDigitsFromEpoch(dA, sec);
+      if (!frozenSnap) frozenSnap = new Array(clocksCache.length);
       for (let i = 0; i < clocksCache.length; i++) {
         timeAngles(clocksCache[i], dA, dA, secMod, secMod, 1, tick);
-        snap[i] = clocksCache[i].timeOut;
+        frozenSnap[i] = clocksCache[i].timeOut;
       }
-      return snap;
+      return frozenSnap;
     };
 
-    let id;
+    let rafActive = !document.hidden;
+    let id = 0;
+
+    const perfStatsEl = document.getElementById('perf-stats');
+    const perfFpsP10El = perfStatsEl.querySelector('.perf-fps-p10');
+    const perfFpsAvgEl = perfStatsEl.querySelector('.perf-fps-avg');
+    const perfFpsP90El = perfStatsEl.querySelector('.perf-fps-p90');
+    const perfRecalcP10El = perfStatsEl.querySelector('.perf-recalc-p10');
+    const perfRecalcAvgEl = perfStatsEl.querySelector('.perf-recalc-avg');
+    const perfRecalcP90El = perfStatsEl.querySelector('.perf-recalc-p90');
+    const perfHandsP10El = perfStatsEl.querySelector('.perf-hands-p10');
+    const perfHandsAvgEl = perfStatsEl.querySelector('.perf-hands-avg');
+    const perfHandsP90El = perfStatsEl.querySelector('.perf-hands-p90');
+    const perfMemP10El = perfStatsEl.querySelector('.perf-mem-p10');
+    const perfMemAvgEl = perfStatsEl.querySelector('.perf-mem-avg');
+    const perfMemP90El = perfStatsEl.querySelector('.perf-mem-p90');
+    const perfDataP10El = perfStatsEl.querySelector('.perf-data-p10');
+    const perfDataAvgEl = perfStatsEl.querySelector('.perf-data-avg');
+    const perfDataP90El = perfStatsEl.querySelector('.perf-data-p90');
+    const PERF_WINDOW_MS = 5 * 60 * 1000;
+    const perfHistory = [];
+    let perfStatsVisible = false;
+    let perfFrameCount = 0;
+    let perfRecalcSum = 0;
+    let perfHandsSum = 0;
+    let perfLastSample = 0;
+
+    const trimPerfHistory = (now) => {
+      const cutoff = now - PERF_WINDOW_MS;
+      while (perfHistory.length && perfHistory[0].t < cutoff) {
+        perfHistory.shift();
+      }
+    };
+
+    const percentile = (sorted, p) => {
+      const n = sorted.length;
+      if (n === 0) return 0;
+      if (n === 1) return sorted[0];
+      const idx = (p / 100) * (n - 1);
+      const lo = Math.floor(idx);
+      const hi = Math.ceil(idx);
+      if (lo === hi) return sorted[lo];
+      return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+    };
+
+    const summarizePerf = (key) => {
+      const values = perfHistory.map(s => s[key]);
+      if (!values.length) return { p10: 0, avg: 0, p90: 0 };
+      const sorted = values.slice().sort((a, b) => a - b);
+      const sum = values.reduce((a, b) => a + b, 0);
+      return {
+        p10: Math.round(percentile(sorted, 10)),
+        avg: Math.round(sum / values.length),
+        p90: Math.round(percentile(sorted, 90))
+      };
+    };
+
+    const fmtCompact = (n) => {
+      if (n < 1000) return String(n);
+      if (n < 1_000_000) {
+        const k = n / 1000;
+        const rounded = k >= 100 ? Math.round(k) : Math.round(k * 10) / 10;
+        return (rounded % 1 === 0 ? String(rounded | 0) : String(rounded)) + 'k';
+      }
+      if (n < 1_000_000_000) {
+        const m = n / 1_000_000;
+        const rounded = m >= 100 ? Math.round(m) : Math.round(m * 10) / 10;
+        return (rounded % 1 === 0 ? String(rounded | 0) : String(rounded)) + 'm';
+      }
+      const b = n / 1_000_000_000;
+      const rounded = b >= 100 ? Math.round(b) : Math.round(b * 10) / 10;
+      return (rounded % 1 === 0 ? String(rounded | 0) : String(rounded)) + 'b';
+    };
+
+    const setStatRow = (p10El, avgEl, p90El, stats) => {
+      p10El.textContent = fmtCompact(stats.p10);
+      avgEl.textContent = fmtCompact(stats.avg);
+      p90El.textContent = fmtCompact(stats.p90);
+    };
+
+    const sampleMemoryBytes = () => {
+      const mem = performance.memory;
+      return mem ? mem.usedJSHeapSize : 0;
+    };
+
+    const estimateDataObjectBytes = () => {
+      let bytes = clocksCache.length * 384;
+      bytes += perfHistory.length * 40;
+      bytes += handBuckets.size * 72;
+      for (const segs of handBuckets.values()) bytes += segs.length * 8;
+      bytes += bucketArrayPool.length * 64;
+      for (let i = 0; i < bucketArrayPool.length; i++) bytes += bucketArrayPool[i].length * 8;
+      if (typeof fishCellPool !== 'undefined') bytes += fishCellPool.length * 48;
+      if (typeof fishGrid !== 'undefined') bytes += 28 * 8 * 16;
+      if (typeof bubbles !== 'undefined') bytes += bubbles.length * 40;
+      if (typeof matrixGrid !== 'undefined') bytes += 28 * 8 * 96;
+      if (typeof matrixDrops !== 'undefined') bytes += matrixDrops.length * 40;
+      return bytes;
+    };
+
+    const updatePerfOverlay = (fps, recalcPerSec, handsPerSec, memoryBytes, dataBytes, sampleNow) => {
+      perfHistory.push({ t: sampleNow, recalc: recalcPerSec, hands: handsPerSec, fps, memory: memoryBytes, dataObj: dataBytes });
+      trimPerfHistory(sampleNow);
+      const recalcStats = summarizePerf('recalc');
+      const handsStats = summarizePerf('hands');
+      const fpsStats = summarizePerf('fps');
+      const memStats = summarizePerf('memory');
+      const dataStats = summarizePerf('dataObj');
+      setStatRow(perfFpsP10El, perfFpsAvgEl, perfFpsP90El, fpsStats);
+      setStatRow(perfRecalcP10El, perfRecalcAvgEl, perfRecalcP90El, recalcStats);
+      setStatRow(perfHandsP10El, perfHandsAvgEl, perfHandsP90El, handsStats);
+      setStatRow(perfMemP10El, perfMemAvgEl, perfMemP90El, memStats);
+      setStatRow(perfDataP10El, perfDataAvgEl, perfDataP90El, dataStats);
+    };
+
+    const resetPerfSample = () => {
+      perfFrameCount = 0;
+      perfRecalcSum = 0;
+      perfHandsSum = 0;
+      perfLastSample = performance.now();
+      perfHistory.length = 0;
+    };
+
+    const togglePerfStats = () => {
+      perfStatsVisible = !perfStatsVisible;
+      perfStatsEl.classList.toggle('visible', perfStatsVisible);
+      perfStatsEl.setAttribute('aria-hidden', perfStatsVisible ? 'false' : 'true');
+      if (perfStatsVisible) resetPerfSample();
+    };
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code !== 'F3' || e.repeat) return;
+      e.preventDefault();
+      togglePerfStats();
+    });
+
     const update = () => {
+      if (!rafActive) {
+        id = 0;
+        return;
+      }
       const TICK = 1000;
       const MOVE = 500;
       const now = Date.now();
@@ -542,107 +738,164 @@
       const minuteVal = ((baseEpochSec / 60) | 0) % 60;
       const secondVal = ~~((baseSec + steppedT) * 100 + 0.5) / 100;
 
-      padDigitsInto(dA, new Date(baseMs));
-      padDigitsInto(dB, new Date(baseMs + TICK));
+      padDigitsFromEpoch(dA, baseEpochSec);
+      padDigitsFromEpoch(dB, baseEpochSec + 1);
 
       const t = now / 1000;
-      const frameData = {
-        t,
-        neonCx1: Math.cos(t * 0.8) * 8, neonCy1: Math.sin(t * 1.1) * 2,
-        neonCx2: Math.cos(t * 0.9 + Math.PI) * 8, neonCy2: Math.sin(t * 1.3 + Math.PI) * 2,
-        dateT2: t * 2,
-        pulseT: t * 1.25,
-        pulseHeartbeat: (t * 1.25) + Math.sin(t * 2.5) * 0.25,
-        vortexPrecessX: Math.sin(t * 0.5) * 1.2,
-        vortexPrecessY: Math.cos(t * 0.3) * 0.5,
-        vortexTimeEffect: 96 * t + 14.4 * Math.sin(t),
-        vortexSpreadTimeEffect: 3.2 * t + 0.48 * Math.sin(t)
-      };
+      frameData.t = t;
+      frameData.neonCx1 = Math.cos(t * 0.8) * 8;
+      frameData.neonCy1 = Math.sin(t * 1.1) * 2;
+      frameData.neonCx2 = Math.cos(t * 0.9 + Math.PI) * 8;
+      frameData.neonCy2 = Math.sin(t * 1.3 + Math.PI) * 2;
+      frameData.dateT2 = t * 2;
+      frameData.pulseT = t * 1.25;
+      frameData.pulseHeartbeat = (t * 1.25) + Math.sin(t * 2.5) * 0.25;
+      frameData.vortexPrecessX = Math.sin(t * 0.5) * 1.2;
+      frameData.vortexPrecessY = Math.cos(t * 0.3) * 0.5;
+      frameData.vortexTimeEffect = 96 * t + 14.4 * Math.sin(t);
+      frameData.vortexSpreadTimeEffect = 3.2 * t + 0.48 * Math.sin(t);
 
       const activeIdleAnim = idle ? anims[idle.animType] : null;
+      const idleStrength = idle ? idle.strength : 0;
+      const isAutoTimer = currentMode === 'auto' && inRing;
       const handLength = clockSize * 0.45;
       const handThickness = Math.max(3, clockSize * 0.1);
       const capRadius = Math.max(0.9, clockSize * 0.04);
+      let timerAngle = 0;
+      let timerEx = 0;
+      let timerEy = 0;
+      if (isAutoTimer) {
+        timerAngle = (now % CYCLE) / RING_LENGTH * 360 - 90;
+        timerEx = clocksCache[0].cx + cosDeg(timerAngle) * handLength;
+        timerEy = clocksCache[0].cy + sinDeg(timerAngle) * handLength;
+      }
 
-      handBuckets.clear();
+      resetHandBuckets();
       ctx.drawImage(gridBgCanvas, 0, 0);
+
+      const canDirty = !activeIdleAnim && !inRing;
+      const colonWobble = (now % TICK) < 450;
+      const digitTicks = canDirty && steppedT < 1 ? [
+        dA[0] !== dB[0], dA[1] !== dB[1], dA[2] !== dB[2],
+        dA[3] !== dB[3], dA[4] !== dB[4], dA[5] !== dB[5]
+      ] : null;
+      let frameRecalc = 0;
+      let frameHands = 0;
+
+      const clockNeedsRecalc = (data, i) => {
+        if (!canDirty || data.drawKeyH === undefined) return true;
+        if (isAutoTimer && i === 0) return true;
+        if (data.isRing) return false;
+        if (data.isColon) {
+          if (data.colonFill) return steppedT < 1;
+          return colonWobble;
+        }
+        return steppedT < 1 && digitTicks[data.digitIdx];
+      };
+
+      const storeAndDrawHands = (data, keyH, keyM, exH, eyH, exM, eyM) => {
+        data.drawKeyH = keyH;
+        data.drawKeyM = keyM;
+        data.exH = exH;
+        data.eyH = eyH;
+        data.exM = exM;
+        data.eyM = eyM;
+        addHandSeg(keyH, data.cx, data.cy, exH, eyH);
+        addHandSeg(keyM, data.cx, data.cy, exM, eyM);
+        frameRecalc++;
+        frameHands += 2;
+      };
 
       for (let i = 0; i < clocksCache.length; i++) {
         const data = clocksCache[i];
+
+        if (!clockNeedsRecalc(data, i)) {
+          addHandSeg(data.drawKeyH, data.cx, data.cy, data.exH, data.eyH);
+          addHandSeg(data.drawKeyM, data.cx, data.cy, data.exM, data.eyM);
+          frameHands += 2;
+          continue;
+        }
+
         const time = inRing ? frozenAngles[i] : timeAngles(data, dA, dB, baseSec, nextSec, steppedT, now);
         let h = time.h;
         let m = time.m;
 
-        data.out.color = null;
-        data.out.colorH = null;
-        data.out.colorS = null;
-        data.out.colorL = null;
-
-        const timeVal = timeValFor(data, hourVal, minuteVal, secondVal);
-        let colorHH = quantizeHue(handHue(h, timeVal));
-        let colorHS = 100;
-        let colorHL = 62;
-        let colorMH = quantizeHue(handHue(m, timeVal));
-        let colorMS = 100;
-        let colorML = 62;
-
-        if (idle && activeIdleAnim) {
+        if (activeIdleAnim) {
+          data.out.ringWeight = 0;
           activeIdleAnim(data, frameData);
 
           if (data.out.ringWeight > 0) {
-            const blend = idle.strength;
+            const blend = idleStrength;
             h = lerp(time.h, data.out.h, blend);
             m = lerp(time.m, data.out.m, blend);
 
+            const timeVal = timeValFor(data, hourVal, minuteVal, secondVal);
             const baseHueH = handHue(time.h, timeVal);
             const baseHueM = handHue(time.m, timeVal);
-            let targetH, targetS, targetL;
+            let colorHH = quantizeHue(baseHueH);
+            let colorHS = 100;
+            let colorHL = 62;
+            let colorMH = quantizeHue(baseHueM);
+            let colorMS = 100;
+            let colorML = 62;
 
             if (data.out.colorH != null) {
-              targetH = data.out.colorH;
-              targetS = data.out.colorS;
-              targetL = data.out.colorL;
+              colorHH = quantizeHue(mixHue(baseHueH, data.out.colorH, blend));
+              colorHS = Math.round(100 + (data.out.colorS - 100) * blend);
+              colorHL = Math.round(62 + (data.out.colorL - 62) * blend);
+              colorMH = quantizeHue(mixHue(baseHueM, data.out.colorH, blend));
+              colorMS = colorHS;
+              colorML = colorHL;
             } else if (data.out.color) {
               parseToHSLInPlace(data.out.color);
-              targetH = parsedColorCache[0];
-              targetS = parsedColorCache[1];
-              targetL = parsedColorCache[2];
-            }
-
-            if (data.out.colorH != null || data.out.color) {
-              colorHH = quantizeHue(mixHue(baseHueH, targetH, blend));
-              colorHS = Math.round(100 + (targetS - 100) * blend);
-              colorHL = Math.round(62 + (targetL - 62) * blend);
-              colorMH = quantizeHue(mixHue(baseHueM, targetH, blend));
+              colorHH = quantizeHue(mixHue(baseHueH, parsedColorCache[0], blend));
+              colorHS = Math.round(100 + (parsedColorCache[1] - 100) * blend);
+              colorHL = Math.round(62 + (parsedColorCache[2] - 62) * blend);
+              colorMH = quantizeHue(mixHue(baseHueM, parsedColorCache[0], blend));
               colorMS = colorHS;
               colorML = colorHL;
             }
+
+            if (isAutoTimer && i === 0) {
+              addHandSeg(COLOR_KEY_WHITE, data.cx, data.cy, timerEx, timerEy);
+              frameRecalc++;
+              frameHands++;
+              continue;
+            }
+
+            const keyH = packColor(colorHH, colorHS, colorHL);
+            const keyM = packColor(colorMH, colorMS, colorML);
+            storeAndDrawHands(
+              data, keyH, keyM,
+              data.cx + cosDeg(h) * handLength, data.cy + sinDeg(h) * handLength,
+              data.cx + cosDeg(m) * handLength, data.cy + sinDeg(m) * handLength
+            );
+            continue;
           }
         }
 
-        if (currentMode === 'auto' && data.x === 0 && data.y === 0 && inRing) {
-          const progress = (now % CYCLE) / RING_LENGTH;
-          const timerAngle = progress * 360 - 90;
-          h = timerAngle;
-          m = timerAngle;
-          const whiteKey = COLOR_KEY_WHITE;
-          const rad = timerAngle * Math.PI / 180;
-          const ex = data.cx + Math.cos(rad) * handLength;
-          const ey = data.cy + Math.sin(rad) * handLength;
-          addHandSeg(whiteKey, data.cx, data.cy, ex, ey);
-          addHandSeg(whiteKey, data.cx, data.cy, ex, ey);
+        if (isAutoTimer && i === 0) {
+          addHandSeg(COLOR_KEY_WHITE, data.cx, data.cy, timerEx, timerEy);
+          frameRecalc++;
+          frameHands++;
           continue;
         }
 
-        const radH = h * Math.PI / 180;
-        const radM = m * Math.PI / 180;
-        const exH = data.cx + Math.cos(radH) * handLength;
-        const eyH = data.cy + Math.sin(radH) * handLength;
-        const exM = data.cx + Math.cos(radM) * handLength;
-        const eyM = data.cy + Math.sin(radM) * handLength;
+        const timeVal = timeValFor(data, hourVal, minuteVal, secondVal);
+        const colorHH = quantizeHue(handHue(h, timeVal));
+        const colorMH = quantizeHue(handHue(m, timeVal));
+        const keyH = packColor(colorHH, 100, 62);
+        const keyM = packColor(colorMH, 100, 62);
+        storeAndDrawHands(
+          data, keyH, keyM,
+          data.cx + cosDeg(h) * handLength, data.cy + sinDeg(h) * handLength,
+          data.cx + cosDeg(m) * handLength, data.cy + sinDeg(m) * handLength
+        );
+      }
 
-        addHandSeg(packColor(colorHH, colorHS, colorHL), data.cx, data.cy, exH, eyH);
-        addHandSeg(packColor(colorMH, colorMS, colorML), data.cx, data.cy, exM, eyM);
+      if (perfStatsVisible) {
+        perfRecalcSum += frameRecalc;
+        perfHandsSum += frameHands;
       }
 
       ctx.lineWidth = handThickness;
@@ -669,10 +922,38 @@
       ctx.fill();
       ctx.stroke();
 
+      if (perfStatsVisible) {
+        perfFrameCount++;
+        const sampleNow = performance.now();
+        const sampleElapsed = sampleNow - perfLastSample;
+        if (sampleElapsed >= 1000) {
+          const fps = Math.round(perfFrameCount * 1000 / sampleElapsed);
+          const recalcPerSec = Math.round(perfRecalcSum * 1000 / sampleElapsed);
+          const handsPerSec = Math.round(perfHandsSum * 1000 / sampleElapsed);
+          updatePerfOverlay(
+            fps,
+            recalcPerSec,
+            handsPerSec,
+            sampleMemoryBytes(),
+            estimateDataObjectBytes(),
+            sampleNow
+          );
+          perfFrameCount = 0;
+          perfRecalcSum = 0;
+          perfHandsSum = 0;
+          perfLastSample = sampleNow;
+        }
+      }
+
       id = requestAnimationFrame(update);
     };
 
-    id = requestAnimationFrame(update);
+    document.addEventListener('visibilitychange', () => {
+      rafActive = !document.hidden;
+      if (rafActive && !id) id = requestAnimationFrame(update);
+    });
+
+    if (rafActive) id = requestAnimationFrame(update);
   </script>
 </body>
 </html>

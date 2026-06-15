@@ -38,13 +38,12 @@ const getHColumn = (px, t, y) => {
 };
 
 let lastRidgeT = -1;
-let lastRidgeRow = -1;
 const heightCacheRows = Array.from({ length: 8 }, () => new Float32Array(31));
 
-const ensureRidgeCache = (t, y) => {
-  if (t !== lastRidgeT || y !== lastRidgeRow) {
-    lastRidgeT = t;
-    lastRidgeRow = y;
+const ensureRidgeCache = (t) => {
+  if (t === lastRidgeT) return;
+  lastRidgeT = t;
+  for (let y = 0; y < 8; y++) {
     const row = heightCacheRows[y];
     for (let col = -1; col <= 29; col++) {
       row[col + 1] = getHColumn(col, t, y);
@@ -57,7 +56,7 @@ const ridgelineIdle = (data, frameData) => {
   const x = data.x;
   const y = data.y;
 
-  ensureRidgeCache(t, y);
+  ensureRidgeCache(t);
   const row = heightCacheRows[y];
 
   const h_center = row[x + 1];
