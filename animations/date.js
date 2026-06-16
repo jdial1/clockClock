@@ -11,6 +11,10 @@ const updateDateDigits = () => {
   dDigits[3] = +dd[1];
   dDigits[4] = +yy[0];
   dDigits[5] = +yy[1];
+  
+  if (typeof clocksCache !== 'undefined') {
+    for (let i = 0; i < clocksCache.length; i++) clocksCache[i].drawKeyH = undefined;
+  }
 };
 
 updateDateDigits();

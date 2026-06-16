@@ -35,6 +35,10 @@ const updateWeatherDigits = () => {
   } else {
     wDigits[3] = +rStr[0]; wDigits[4] = +rStr[1]; wDigits[5] = +rStr[2];
   }
+  
+  if (typeof clocksCache !== 'undefined') {
+    for (let i = 0; i < clocksCache.length; i++) clocksCache[i].drawKeyH = undefined;
+  }
 };
 
 const fetchWeather = async () => {

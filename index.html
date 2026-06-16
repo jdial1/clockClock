@@ -30,26 +30,47 @@
   </div>
   <div id="perf-stats" class="perf-stats" aria-hidden="true">
     <div class="perf-stats-grid">
-      <span class="perf-stats-label">FPS</span>
-      <span class="perf-stats-val perf-fps-p10">—</span>
-      <span class="perf-stats-val perf-fps-avg">—</span>
-      <span class="perf-stats-val perf-fps-p90">—</span>
-      <span class="perf-stats-label">Recalc/s</span>
-      <span class="perf-stats-val perf-recalc-p10">—</span>
-      <span class="perf-stats-val perf-recalc-avg">—</span>
-      <span class="perf-stats-val perf-recalc-p90">—</span>
-      <span class="perf-stats-label">Hands/s</span>
-      <span class="perf-stats-val perf-hands-p10">—</span>
-      <span class="perf-stats-val perf-hands-avg">—</span>
-      <span class="perf-stats-val perf-hands-p90">—</span>
-      <span class="perf-stats-label">Memory</span>
-      <span class="perf-stats-val perf-mem-p10">—</span>
-      <span class="perf-stats-val perf-mem-avg">—</span>
-      <span class="perf-stats-val perf-mem-p90">—</span>
-      <span class="perf-stats-label">Data</span>
-      <span class="perf-stats-val perf-data-p10">—</span>
-      <span class="perf-stats-val perf-data-avg">—</span>
-      <span class="perf-stats-val perf-data-p90">—</span>
+      <span class="perf-stats-label" style="grid-column: 1; grid-row: 1;">FPS</span>
+      <span class="perf-stats-val perf-fps-avg" style="grid-column: 2; grid-row: 1;" title="Average FPS">—</span>
+      <span class="perf-stats-val perf-fps-p10" style="display: none;" title="10th Percentile FPS">—</span>
+      <span class="perf-stats-val perf-fps-p90" style="display: none;" title="90th Percentile FPS">—</span>
+      <canvas id="spark-fps" class="perf-spark" style="grid-column: 3; grid-row: 1;"></canvas>
+
+      <span class="perf-stats-label" style="grid-column: 1; grid-row: 2;">Frame ms</span>
+      <span class="perf-stats-val perf-frame-avg" style="grid-column: 2; grid-row: 2;" title="Average Frame Time">—</span>
+      <span class="perf-stats-val perf-frame-p10" style="display: none;" title="10th Percentile Frame Time">—</span>
+      <span class="perf-stats-val perf-frame-p90" style="display: none;" title="90th Percentile Frame Time">—</span>
+      <canvas id="spark-frame" class="perf-spark" style="grid-column: 3; grid-row: 2;"></canvas>
+
+      <span class="perf-stats-label" style="grid-column: 1; grid-row: 3;">Recalc/s</span>
+      <span class="perf-stats-val perf-recalc-avg" style="grid-column: 2; grid-row: 3;">—</span>
+      <span class="perf-stats-val perf-recalc-p10" style="display: none;">—</span>
+      <span class="perf-stats-val perf-recalc-p90" style="display: none;">—</span>
+      <canvas id="spark-recalc" class="perf-spark" style="grid-column: 3; grid-row: 3;"></canvas>
+
+      <span class="perf-stats-label" style="grid-column: 1; grid-row: 4;">Hands/s</span>
+      <span class="perf-stats-val perf-hands-avg" style="grid-column: 2; grid-row: 4;">—</span>
+      <span class="perf-stats-val perf-hands-p10" style="display: none;">—</span>
+      <span class="perf-stats-val perf-hands-p90" style="display: none;">—</span>
+      <canvas id="spark-hands" class="perf-spark" style="grid-column: 3; grid-row: 4;"></canvas>
+
+      <span class="perf-stats-label" style="grid-column: 1; grid-row: 5;">Memory</span>
+      <span class="perf-stats-val perf-mem-avg" style="grid-column: 2; grid-row: 5;">—</span>
+      <span class="perf-stats-val perf-mem-p10" style="display: none;">—</span>
+      <span class="perf-stats-val perf-mem-p90" style="display: none;">—</span>
+      <canvas id="spark-mem" class="perf-spark" style="grid-column: 3; grid-row: 5;"></canvas>
+
+      <span class="perf-stats-label" style="grid-column: 1; grid-row: 6;">Jank %</span>
+      <span class="perf-stats-val perf-jank-avg" style="grid-column: 2; grid-row: 6;" title="Average Jank %">—</span>
+      <span class="perf-stats-val perf-jank-p10" style="display: none;" title="10th Percentile Jank %">—</span>
+      <span class="perf-stats-val perf-jank-p90" style="display: none;" title="90th Percentile Jank %">—</span>
+      <canvas id="spark-jank" class="perf-spark" style="grid-column: 3; grid-row: 6;"></canvas>
+
+      <span class="perf-stats-label" style="grid-column: 1; grid-row: 7;">Data</span>
+      <span class="perf-stats-val perf-data-avg" style="grid-column: 2; grid-row: 7;">—</span>
+      <span class="perf-stats-val perf-data-p10" style="display: none;">—</span>
+      <span class="perf-stats-val perf-data-p90" style="display: none;">—</span>
+      <canvas id="spark-data" class="perf-spark" style="grid-column: 3; grid-row: 7;"></canvas>
     </div>
   </div>
   <script>
@@ -550,6 +571,9 @@
     const perfFpsP10El = perfStatsEl.querySelector('.perf-fps-p10');
     const perfFpsAvgEl = perfStatsEl.querySelector('.perf-fps-avg');
     const perfFpsP90El = perfStatsEl.querySelector('.perf-fps-p90');
+    const perfFrameP10El = perfStatsEl.querySelector('.perf-frame-p10');
+    const perfFrameAvgEl = perfStatsEl.querySelector('.perf-frame-avg');
+    const perfFrameP90El = perfStatsEl.querySelector('.perf-frame-p90');
     const perfRecalcP10El = perfStatsEl.querySelector('.perf-recalc-p10');
     const perfRecalcAvgEl = perfStatsEl.querySelector('.perf-recalc-avg');
     const perfRecalcP90El = perfStatsEl.querySelector('.perf-recalc-p90');
@@ -559,16 +583,28 @@
     const perfMemP10El = perfStatsEl.querySelector('.perf-mem-p10');
     const perfMemAvgEl = perfStatsEl.querySelector('.perf-mem-avg');
     const perfMemP90El = perfStatsEl.querySelector('.perf-mem-p90');
+    const perfJankP10El = perfStatsEl.querySelector('.perf-jank-p10');
+    const perfJankAvgEl = perfStatsEl.querySelector('.perf-jank-avg');
+    const perfJankP90El = perfStatsEl.querySelector('.perf-jank-p90');
     const perfDataP10El = perfStatsEl.querySelector('.perf-data-p10');
     const perfDataAvgEl = perfStatsEl.querySelector('.perf-data-avg');
     const perfDataP90El = perfStatsEl.querySelector('.perf-data-p90');
     const PERF_WINDOW_MS = 5 * 60 * 1000;
     const perfHistory = [];
+    const PERF_FRAME_TIMES_SIZE = 18000;
+    const perfFrameTimes = new Float32Array(PERF_FRAME_TIMES_SIZE);
+    let perfFrameTimesIdx = 0;
+    let perfFrameTimesCount = 0;
     let perfStatsVisible = false;
     let perfFrameCount = 0;
     let perfRecalcSum = 0;
     let perfHandsSum = 0;
     let perfLastSample = 0;
+    let perfLastFrameStart = 0;
+    let perfMaxFrameTimeThisSample = 0;
+    let perfSumFrameTimeThisSample = 0;
+    const perfFrameTimesThisSecond = [];
+    let perfLastMemoryBytes = 0;
 
     const trimPerfHistory = (now) => {
       const cutoff = now - PERF_WINDOW_MS;
@@ -593,14 +629,21 @@
       if (!values.length) return { p10: 0, avg: 0, p90: 0 };
       const sorted = values.slice().sort((a, b) => a - b);
       const sum = values.reduce((a, b) => a + b, 0);
+      
+      const p10 = percentile(sorted, 10);
+      const avg = sum / values.length;
+      const p90 = percentile(sorted, 90);
+      
+      const out = [p10, avg, p90].sort((a, b) => a - b);
       return {
-        p10: Math.round(percentile(sorted, 10)),
-        avg: Math.round(sum / values.length),
-        p90: Math.round(percentile(sorted, 90))
+        p10: out[0],
+        avg: out[1],
+        p90: out[2]
       };
     };
 
     const fmtCompact = (n) => {
+      n = Math.round(n);
       if (n < 1000) return String(n);
       if (n < 1_000_000) {
         const k = n / 1000;
@@ -643,27 +686,174 @@
       return bytes;
     };
 
-    const updatePerfOverlay = (fps, recalcPerSec, handsPerSec, memoryBytes, dataBytes, sampleNow) => {
-      perfHistory.push({ t: sampleNow, recalc: recalcPerSec, hands: handsPerSec, fps, memory: memoryBytes, dataObj: dataBytes });
+    const drawSparkline = (canvasId, key, stats) => {
+      const cvs = document.getElementById(canvasId);
+      if (!cvs) return;
+      const ctx = cvs.getContext('2d', { alpha: true });
+      const w = cvs.clientWidth;
+      const h = cvs.clientHeight;
+      if (w === 0 || h === 0) return;
+      if (cvs.width !== w * dpr || cvs.height !== h * dpr) {
+        cvs.width = w * dpr;
+        cvs.height = h * dpr;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+      if (perfHistory.length < 2) return;
+
+      let min = Infinity, max = -Infinity;
+      for (let i = 0; i < perfHistory.length; i++) {
+        const v = perfHistory[i][key] || 0;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      
+      if (stats) {
+        if (stats.p10 < min) min = stats.p10;
+        if (stats.p90 > max) max = stats.p90;
+      }
+      
+      const range = max - min || 1;
+      const pad = h * 0.15;
+      const drawH = h - pad * 2;
+
+      const getY = (val) => h - pad - ((val - min) / range) * drawH;
+
+      if (stats) {
+        ctx.lineWidth = 1.5;
+        
+        // P10/lowest
+        ctx.strokeStyle = 'rgba(255, 60, 60, 0.45)';
+        ctx.setLineDash([2, 4]);
+        ctx.beginPath(); ctx.moveTo(0, getY(stats.p10)); ctx.lineTo(w, getY(stats.p10)); ctx.stroke();
+        
+        // Avg/middle
+        ctx.strokeStyle = 'rgba(255, 255, 0, 0.45)';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(0, getY(stats.avg)); ctx.lineTo(w, getY(stats.avg)); ctx.stroke();
+        
+        // P90/highest
+        ctx.strokeStyle = 'rgba(0, 255, 128, 0.45)';
+        ctx.setLineDash([2, 4]);
+        ctx.beginPath(); ctx.moveTo(0, getY(stats.p90)); ctx.lineTo(w, getY(stats.p90)); ctx.stroke();
+        
+        ctx.setLineDash([]);
+      }
+
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < perfHistory.length; i++) {
+        const x = (i / (perfHistory.length - 1)) * w;
+        const y = getY(perfHistory[i][key] || 0);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    };
+
+    const updatePerfOverlay = (fps, recalcPerSec, handsPerSec, memoryBytes, dataBytes, sampleNow, maxFrameTime, avgFrameTime, jankPercent) => {
+      perfHistory.push({ t: sampleNow, recalc: recalcPerSec, hands: handsPerSec, fps, memory: memoryBytes, dataObj: dataBytes, frameMax: maxFrameTime, frameAvg: avgFrameTime, jankPercent });
       trimPerfHistory(sampleNow);
+      
       const recalcStats = summarizePerf('recalc');
       const handsStats = summarizePerf('hands');
       const fpsStats = summarizePerf('fps');
       const memStats = summarizePerf('memory');
       const dataStats = summarizePerf('dataObj');
-      setStatRow(perfFpsP10El, perfFpsAvgEl, perfFpsP90El, fpsStats);
+      const frameAvgStats = summarizePerf('frameAvg');
+      const jankStats = summarizePerf('jankPercent');
+
+      let fps1Low = 0;
+      if (perfFrameTimesCount > 0) {
+        const validTimes = perfFrameTimes.subarray(0, perfFrameTimesCount);
+        const sortedDt = validTimes.slice().sort();
+        const p99FrameTime = percentile(sortedDt, 99);
+        fps1Low = p99FrameTime > 0 ? (1000 / p99FrameTime) : 0;
+      }
+
+      const outFps = [fps1Low, fpsStats.avg, fpsStats.p90].sort((a, b) => a - b);
+      perfFpsP10El.textContent = String(Math.round(outFps[0]));
+      perfFpsAvgEl.textContent = String(Math.round(outFps[1]));
+      perfFpsP90El.textContent = String(Math.round(outFps[2]));
+      drawSparkline('spark-fps', 'fps', { p10: outFps[0], avg: outFps[1], p90: outFps[2] });
+      
+      const outFrame = [frameAvgStats.p10, frameAvgStats.avg, frameAvgStats.p90].sort((a, b) => a - b);
+      perfFrameP10El.textContent = outFrame[0].toFixed(1);
+      perfFrameAvgEl.textContent = outFrame[1].toFixed(1);
+      perfFrameP90El.textContent = outFrame[2].toFixed(1);
+      drawSparkline('spark-frame', 'frameAvg', { p10: outFrame[0], avg: outFrame[1], p90: outFrame[2] });
+
       setStatRow(perfRecalcP10El, perfRecalcAvgEl, perfRecalcP90El, recalcStats);
+      drawSparkline('spark-recalc', 'recalc', recalcStats);
+      
       setStatRow(perfHandsP10El, perfHandsAvgEl, perfHandsP90El, handsStats);
+      drawSparkline('spark-hands', 'hands', handsStats);
+      
       setStatRow(perfMemP10El, perfMemAvgEl, perfMemP90El, memStats);
+      drawSparkline('spark-mem', 'memory', memStats);
+      
+      const outJank = [jankStats.p10, jankStats.avg, jankStats.p90].sort((a, b) => a - b);
+      perfJankP10El.textContent = outJank[0].toFixed(1) + '%';
+      perfJankAvgEl.textContent = outJank[1].toFixed(1) + '%';
+      perfJankP90El.textContent = outJank[2].toFixed(1) + '%';
+      drawSparkline('spark-jank', 'jankPercent', { p10: outJank[0], avg: outJank[1], p90: outJank[2] });
+
       setStatRow(perfDataP10El, perfDataAvgEl, perfDataP90El, dataStats);
+      drawSparkline('spark-data', 'dataObj', dataStats);
     };
 
     const resetPerfSample = () => {
       perfFrameCount = 0;
       perfRecalcSum = 0;
       perfHandsSum = 0;
+      perfMaxFrameTimeThisSample = 0;
+      perfSumFrameTimeThisSample = 0;
+      perfFrameTimesThisSecond.length = 0;
       perfLastSample = performance.now();
+      perfLastFrameStart = perfLastSample;
+      perfLastMemoryBytes = sampleMemoryBytes();
       perfHistory.length = 0;
+      perfFrameTimesIdx = 0;
+      perfFrameTimesCount = 0;
+
+      const dash = '—';
+      perfFpsP10El.textContent = dash;
+      perfFpsAvgEl.textContent = dash;
+      perfFpsP90El.textContent = dash;
+      perfFrameP10El.textContent = dash;
+      perfFrameAvgEl.textContent = dash;
+      perfFrameP90El.textContent = dash;
+      perfRecalcP10El.textContent = dash;
+      perfRecalcAvgEl.textContent = dash;
+      perfRecalcP90El.textContent = dash;
+      perfHandsP10El.textContent = dash;
+      perfHandsAvgEl.textContent = dash;
+      perfHandsP90El.textContent = dash;
+      perfMemP10El.textContent = dash;
+      perfMemAvgEl.textContent = dash;
+      perfMemP90El.textContent = dash;
+      perfJankP10El.textContent = dash;
+      perfJankAvgEl.textContent = dash;
+      perfJankP90El.textContent = dash;
+      perfDataP10El.textContent = dash;
+      perfDataAvgEl.textContent = dash;
+      perfDataP90El.textContent = dash;
+
+      const clearSpark = (id) => {
+        const cvs = document.getElementById(id);
+        if (cvs) {
+          const ctx = cvs.getContext('2d');
+          ctx.clearRect(0, 0, cvs.width, cvs.height);
+        }
+      };
+      clearSpark('spark-fps');
+      clearSpark('spark-frame');
+      clearSpark('spark-recalc');
+      clearSpark('spark-hands');
+      clearSpark('spark-mem');
+      clearSpark('spark-jank');
+      clearSpark('spark-data');
     };
 
     const togglePerfStats = () => {
@@ -683,6 +873,10 @@
       if (!rafActive) {
         id = 0;
         return;
+      }
+      const frameStart = performance.now();
+      if (perfStatsVisible) {
+        // memory bytes logic removed to replace with jank count
       }
       const TICK = 1000;
       const MOVE = 500;
@@ -714,6 +908,10 @@
       if (activeMode !== lastGlowMode) {
         lastGlowMode = activeMode;
         app.style.setProperty('--glow-color', glowThemes[activeMode] || glowThemes.time);
+        
+        for (let i = 0; i < clocksCache.length; i++) {
+          clocksCache[i].drawKeyH = undefined;
+        }
       }
 
       if (inRing) {
@@ -783,8 +981,24 @@
       let frameHands = 0;
 
       const clockNeedsRecalc = (data, i) => {
-        if (!canDirty || data.drawKeyH === undefined) return true;
+        if (data.drawKeyH === undefined) return true;
         if (isAutoTimer && i === 0) return true;
+        
+        if (activeIdleAnim === dateIdle) {
+          if (idleStrength < 1) return true;
+          if (data.isRing) return true;
+          if (data.isColon) return false;
+          return digits[dDigits[data.digitIdx]][data.clockIdx].isIdle;
+        }
+        
+        if (activeIdleAnim === weatherIdle) {
+          if (idleStrength < 1) return true;
+          if (data.isRing) return true;
+          if (data.isColon) return false;
+          return digits[wDigits[data.digitIdx]][data.clockIdx].isIdle;
+        }
+
+        if (!canDirty) return true;
         if (data.isRing) return false;
         if (data.isColon) {
           if (data.colonFill) return steppedT < 1;
@@ -924,24 +1138,60 @@
 
       if (perfStatsVisible) {
         perfFrameCount++;
-        const sampleNow = performance.now();
-        const sampleElapsed = sampleNow - perfLastSample;
+        const frameEnd = performance.now();
+        const cpuDt = frameEnd - frameStart;
+        if (cpuDt > perfMaxFrameTimeThisSample) perfMaxFrameTimeThisSample = cpuDt;
+        perfSumFrameTimeThisSample += cpuDt;
+        
+        if (perfLastFrameStart > 0) {
+          const frameDt = frameStart - perfLastFrameStart;
+          if (frameDt > 0) {
+            perfFrameTimes[perfFrameTimesIdx] = frameDt;
+            perfFrameTimesIdx = (perfFrameTimesIdx + 1) % PERF_FRAME_TIMES_SIZE;
+            if (perfFrameTimesCount < PERF_FRAME_TIMES_SIZE) perfFrameTimesCount++;
+            perfFrameTimesThisSecond.push(frameDt);
+          }
+        }
+        perfLastFrameStart = frameStart;
+
+        const sampleElapsed = frameEnd - perfLastSample;
         if (sampleElapsed >= 1000) {
           const fps = Math.round(perfFrameCount * 1000 / sampleElapsed);
           const recalcPerSec = Math.round(perfRecalcSum * 1000 / sampleElapsed);
           const handsPerSec = Math.round(perfHandsSum * 1000 / sampleElapsed);
+          const avgFrameTime = perfSumFrameTimeThisSample / perfFrameCount;
+          
+          let jankPercent = 0;
+          if (perfFrameTimesThisSecond.length > 0) {
+            const sortedDt = perfFrameTimesThisSecond.slice().sort((a, b) => a - b);
+            const medianDt = sortedDt[Math.floor(sortedDt.length / 2)];
+            const threshold = Math.max(16, medianDt * 1.5);
+            let jankFrames = 0;
+            for (let i = 0; i < perfFrameTimesThisSecond.length; i++) {
+              if (perfFrameTimesThisSecond[i] > threshold) jankFrames++;
+            }
+            jankPercent = (jankFrames / perfFrameTimesThisSecond.length) * 100;
+          }
+          
           updatePerfOverlay(
             fps,
             recalcPerSec,
             handsPerSec,
             sampleMemoryBytes(),
             estimateDataObjectBytes(),
-            sampleNow
+            frameEnd,
+            perfMaxFrameTimeThisSample,
+            avgFrameTime,
+            jankPercent
           );
+          
           perfFrameCount = 0;
           perfRecalcSum = 0;
           perfHandsSum = 0;
-          perfLastSample = sampleNow;
+          perfMaxFrameTimeThisSample = 0;
+          perfSumFrameTimeThisSample = 0;
+          perfFrameTimesThisSecond.length = 0;
+          perfLastSample = frameEnd;
         }
       }
 
