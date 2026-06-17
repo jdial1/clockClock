@@ -181,7 +181,8 @@ const MODES = [
   { id: 'pulse', glow: 'rgba(240, 110, 0, 0.025)', url: 7, idle: () => pulseIdle, auto: true },
   { id: 'fish', glow: 'rgba(0, 120, 255, 0.025)', url: 8, idle: () => fishIdle, auto: true },
   { id: 'matrix', glow: 'rgba(0, 255, 50, 0.03)', url: 9, idle: () => matrixIdle, auto: true },
-  { id: 'gravity', glow: 'rgba(180, 120, 40, 0.02)', url: 10, idle: () => gravityIdle, auto: true }
+  { id: 'gravity', glow: 'rgba(180, 120, 40, 0.02)', url: 10, idle: () => gravityIdle, auto: true },
+  { id: 'tetris', glow: 'rgba(255, 100, 200, 0.025)', url: 11, idle: () => tetrisIdle, auto: true }
 ];
 
 const glowThemes = Object.fromEntries(MODES.map((m) => [m.id, m.glow]));
@@ -209,9 +210,9 @@ let currentMode = 'auto';
 let modeStartTime = 0;
 let autoRotation = MODES.filter((m) => m.auto).map((m) => m.id);
 
-const flagMatch = window.location.pathname.match(/\/([1-9]|10)\/?$/) ||
-                  window.location.hash.match(/#([1-9]|10)\b/) ||
-                  window.location.search.match(/\?([1-9]|10)\b/);
+const flagMatch = window.location.pathname.match(/\/([1-9]|10|11)\/?$/) ||
+                  window.location.hash.match(/#([1-9]|10|11)\b/) ||
+                  window.location.search.match(/\?([1-9]|10|11)\b/);
 if (flagMatch) {
   const mode = MODES.find((m) => m.url === parseInt(flagMatch[1], 10));
   if (mode) {
