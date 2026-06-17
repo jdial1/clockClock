@@ -71,6 +71,12 @@
       <span class="perf-stats-val perf-data-p10" style="display: none;">—</span>
       <span class="perf-stats-val perf-data-p90" style="display: none;">—</span>
       <canvas id="spark-data" class="perf-spark" style="grid-column: 3; grid-row: 7;"></canvas>
+
+      <span class="perf-stats-label" style="grid-column: 1; grid-row: 8;">Time</span>
+      <span id="perf-realtime" class="perf-stats-val" style="grid-column: 2 / span 2; text-align: left; grid-row: 8;">—</span>
+
+      <span class="perf-stats-label" style="grid-column: 1; grid-row: 9;">TZ</span>
+      <span id="perf-timezone" class="perf-stats-val" style="grid-column: 2 / span 2; text-align: left; grid-row: 9;">—</span>
     </div>
   </div>
   <script>
@@ -553,9 +559,10 @@
 
     const captureFrozen = ms => {
       const tick = ms - (ms % 1000);
-      const sec = (tick / 1000) | 0;
-      const secMod = sec % 60;
-      padDigitsFromEpoch(dA, sec);
+      const d = new Date(tick);
+      const fakeEpoch = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
+      const secMod = d.getSeconds();
+      padDigitsFromEpoch(dA, fakeEpoch);
       if (!frozenSnap) frozenSnap = new Array(clocksCache.length);
       for (let i = 0; i < clocksCache.length; i++) {
         timeAngles(clocksCache[i], dA, dA, secMod, secMod, 1, tick);
@@ -589,6 +596,8 @@
     const perfDataP10El = perfStatsEl.querySelector('.perf-data-p10');
     const perfDataAvgEl = perfStatsEl.querySelector('.perf-data-avg');
     const perfDataP90El = perfStatsEl.querySelector('.perf-data-p90');
+    const perfRealtimeEl = document.getElementById('perf-realtime');
+    const perfTimezoneEl = document.getElementById('perf-timezone');
     const PERF_WINDOW_MS = 5 * 60 * 1000;
     const perfHistory = [];
     const PERF_FRAME_TIMES_SIZE = 18000;
@@ -801,6 +810,10 @@
 
       setStatRow(perfDataP10El, perfDataAvgEl, perfDataP90El, dataStats);
       drawSparkline('spark-data', 'dataObj', dataStats);
+      
+      const d = new Date();
+      perfRealtimeEl.textContent = d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+      perfTimezoneEl.textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
     };
 
     const resetPerfSample = () => {
@@ -839,6 +852,8 @@
       perfDataP10El.textContent = dash;
       perfDataAvgEl.textContent = dash;
       perfDataP90El.textContent = dash;
+      perfRealtimeEl.textContent = dash;
+      perfTimezoneEl.textContent = dash;
 
       const clearSpark = (id) => {
         const cvs = document.getElementById(id);
@@ -929,15 +944,18 @@
       const elapsed = now - baseMs;
       const tNorm = Math.min(1, elapsed / MOVE);
       const steppedT = elapsed >= MOVE ? 1 : easeOutBack(tNorm);
-      const baseSec = ((baseMs / 1000) | 0) % 60;
+      
+      const dNow = new Date(baseMs);
+      const hourVal = dNow.getHours();
+      const minuteVal = dNow.getMinutes();
+      const baseSec = dNow.getSeconds();
       const nextSec = (baseSec + 1) % 60;
-      const baseEpochSec = (baseMs / 1000) | 0;
-      const hourVal = ((baseEpochSec / 3600) | 0) % 24;
-      const minuteVal = ((baseEpochSec / 60) | 0) % 60;
+      
+      const fakeEpochSec = hourVal * 3600 + minuteVal * 60 + baseSec;
       const secondVal = ~~((baseSec + steppedT) * 100 + 0.5) / 100;
 
-      padDigitsFromEpoch(dA, baseEpochSec);
-      padDigitsFromEpoch(dB, baseEpochSec + 1);
+      padDigitsFromEpoch(dA, fakeEpochSec);
+      padDigitsFromEpoch(dB, fakeEpochSec + 1);
 
       const t = now / 1000;
       frameData.t = t;
