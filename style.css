@@ -1,7 +1,7 @@
 body {
       padding: 0;
       margin: 0;
-      background-color: #121212;
+      background-color: #140f0c;
       overflow: hidden;
     }
 
@@ -35,8 +35,8 @@ body {
       height: calc(var(--clock-size) * 10);
       background: radial-gradient(
         ellipse 55% 45% at center,
-        var(--glow-color, rgba(0, 255, 204, 0.12)) 0%,
-        var(--glow-color, rgba(0, 255, 204, 0.04)) 40%,
+        var(--glow-color, rgba(236, 155, 95, 0.12)) 0%,
+        var(--glow-color, rgba(236, 155, 95, 0.04)) 40%,
         transparent 72%
       );
       border-radius: calc(var(--clock-size) * 4);
@@ -119,12 +119,12 @@ body {
     .controls button.active {
       background: #222;
       color: #fff;
-      border-color: #00ffcc;
-      box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
+      border-color: #00A071;
+      box-shadow: 0 0 10px rgba(0, 160, 113, 0.2);
     }
 
     .controls button.active:hover {
-      box-shadow: 0 4px 15px rgba(0, 255, 204, 0.3);
+      box-shadow: 0 4px 15px rgba(0, 160, 113, 0.3);
     }
 
     .controls button.excluded {
@@ -136,8 +136,14 @@ body {
     .controls button.current-playing {
       text-decoration: underline;
       text-underline-offset: 4px;
-      text-decoration-color: #00ffcc;
+      text-decoration-color: #00A071;
       text-decoration-thickness: 2px;
+    }
+
+    .perf-stats,
+    .perf-stats-label,
+    .perf-stats-val {
+      -webkit-text-stroke: 2px #000;
     }
 
     .perf-stats {
@@ -151,7 +157,6 @@ body {
       line-height: 1;
       color: #ffff00;
       text-align: left;
-      -webkit-text-stroke: 2px #000;
       paint-order: stroke fill;
       text-shadow:
         2px 0 0 #000,
@@ -197,7 +202,6 @@ body {
     .perf-stats-label {
       text-align: left;
       padding-right: 6px;
-      -webkit-text-stroke: 2px #000;
     }
 
     .perf-stats-val {
@@ -205,5 +209,9 @@ body {
       font-variant-numeric: tabular-nums;
       font-weight: 800;
       letter-spacing: 0.04em;
-      -webkit-text-stroke: 2px #000;
+    }
+
+    .perf-stats-wide {
+      grid-column: 2 / span 2;
+      text-align: left;
     }

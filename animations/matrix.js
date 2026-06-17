@@ -1,121 +1,70 @@
-let matrixDrops = [];
-let dropPool = [];
-let matrixGrid = Array(28).fill(0).map(() => Array(8).fill(0).map(() => ({
-  h: Math.floor(Math.random() * 8) * 45,
-  m: Math.floor(Math.random() * 8) * 45,
-  brightness: 0,
-  isHead: false
-})));
-let lastMatrixT = 0;
+const matrixTicker = createTicker(0.1);
 
-const takeDrop = (x, y, speed) => {
-  const d = dropPool.pop() || { x: 0, y: 0, speed: 0 };
-  d.x = x;
-  d.y = y;
-  d.speed = speed;
-  return d;
+const randomizeBufferAngles = (ci) => {
+  globalGridBuffer[ci] = Math.floor(Math.random() * 8) * 45;
+  globalGridBuffer[ci + 1] = Math.floor(Math.random() * 8) * 45;
 };
 
-const releaseDrop = (i) => {
-  dropPool.push(matrixDrops[i]);
-  matrixDrops[i] = matrixDrops[matrixDrops.length - 1];
-  matrixDrops.pop();
-};
-
-const updateMatrix = (t) => {
-  let dt = t - lastMatrixT;
-  if (dt > 0.1) dt = 0.1;
-  lastMatrixT = t;
-
-  for (let x = 0; x < 28; x++) {
-    for (let y = 0; y < 8; y++) {
-      matrixGrid[x][y].brightness -= dt * 0.4;
-      if (matrixGrid[x][y].brightness < 0) matrixGrid[x][y].brightness = 0;
-      matrixGrid[x][y].isHead = false;
-
-      if (matrixGrid[x][y].brightness > 0.3 && Math.random() < 0.05) {
-        matrixGrid[x][y].h = Math.floor(Math.random() * 8) * 45;
-        matrixGrid[x][y].m = Math.floor(Math.random() * 8) * 45;
-      }
-    }
+for (let x = 0; x < GRID_COLS; x++) {
+  for (let y = 0; y < GRID_ROWS; y++) {
+    const i = cellIdx(x, y);
+    randomizeBufferAngles(i);
+    globalGridBuffer[i + 2] = 0;
   }
+}
 
-  if (matrixDrops.length < 20 && Math.random() < 0.3) {
-    matrixDrops.push(takeDrop(
-      Math.floor(Math.random() * 28),
-      -Math.random() * 8,
-      3 + Math.random() * 5
-    ));
-  }
-
-  for (let i = matrixDrops.length - 1; i >= 0; i--) {
-    const drop = matrixDrops[i];
+const matrixEngine = createParticleEngine(
+  { x: 0, y: 0, speed: 0 },
+  (drop, dt) => {
     const oldY = Math.floor(drop.y);
     drop.y += drop.speed * dt;
     const newY = Math.floor(drop.y);
+    if (newY >= 0 && newY < GRID_ROWS) {
+      const ci = cellIdx(drop.x, newY);
+      globalGridBuffer[ci + 2] = 1.0;
+      gridFlags[flagIdx(drop.x, newY)] = CELL_HEAD;
+      if (newY !== oldY) randomizeBufferAngles(ci);
+    }
+    return drop.y <= 16;
+  },
+  0.3,
+  () => ({
+    x: Math.floor(Math.random() * GRID_COLS),
+    y: -Math.random() * GRID_ROWS,
+    speed: 3 + Math.random() * 5
+  }),
+  20
+);
 
-    if (newY >= 0 && newY < 8) {
-      matrixGrid[drop.x][newY].brightness = 1.0;
-      matrixGrid[drop.x][newY].isHead = true;
-      if (newY !== oldY) {
-        matrixGrid[drop.x][newY].h = Math.floor(Math.random() * 8) * 45;
-        matrixGrid[drop.x][newY].m = Math.floor(Math.random() * 8) * 45;
+const updateMatrix = (t) => {
+  matrixTicker.tick(t, (dt) => {
+    for (let x = 0; x < GRID_COLS; x++) {
+      for (let y = 0; y < GRID_ROWS; y++) {
+        const i = cellIdx(x, y);
+        globalGridBuffer[i + 2] = Math.max(0, globalGridBuffer[i + 2] - dt * 0.4);
+        gridFlags[flagIdx(x, y)] = 0;
+        if (globalGridBuffer[i + 2] > 0.3 && Math.random() < 0.05) randomizeBufferAngles(i);
       }
     }
-
-    if (drop.y > 16) {
-      releaseDrop(i);
-    }
-  }
+    matrixEngine.tick(dt);
+  });
 };
 
 const matrixIdle = (data, frameData) => {
-  if (frameData.t !== lastMatrixT) {
-    updateMatrix(frameData.t);
-  }
-
-  const cell = matrixGrid[data.x]?.[data.y];
-  if (!cell) return;
+  const i = cellIdx(data.x, data.y);
+  const isHead = gridFlags[flagIdx(data.x, data.y)] === CELL_HEAD;
+  const brightness = globalGridBuffer[i + 2];
 
   if (data.matrixH === undefined) {
-    data.matrixH = cell.h;
-    data.matrixM = cell.m;
+    data.matrixH = globalGridBuffer[i];
+    data.matrixM = globalGridBuffer[i + 1];
   }
 
-  const targetH = cell.isHead ? 90 : cell.h;
-  const targetM = cell.isHead ? 270 : cell.m;
-  const easing = cell.isHead ? 0.8 : 0.25;
-  let diffH = targetH - data.matrixH;
-  let diffM = targetM - data.matrixM;
-  diffH = ((diffH + 540) % 360) - 180;
-  diffM = ((diffM + 540) % 360) - 180;
-
-  data.matrixH += diffH * easing;
-  data.matrixM += diffM * easing;
-  data.matrixH = (data.matrixH + 360) % 360;
-  data.matrixM = (data.matrixM + 360) % 360;
-
-  data.out.h = data.matrixH;
-  data.out.m = data.matrixM;
-
-  if (cell.brightness > 0) {
-    if (cell.isHead) {
-      data.out.colorH = 120;
-      data.out.colorS = 100;
-      data.out.colorL = 95;
-      data.out.color = null;
-    } else {
-      data.out.colorH = 128;
-      data.out.colorS = Math.floor(60 + cell.brightness * 40);
-      data.out.colorL = Math.floor(4 + cell.brightness * 40);
-      data.out.color = null;
-    }
-  } else {
-    data.out.colorH = 130;
-    data.out.colorS = 100;
-    data.out.colorL = 2;
-    data.out.color = null;
-  }
-
-  data.out.ringWeight = 1;
+  easeAnglePair(data, 'matrixH', 'matrixM', isHead ? 90 : globalGridBuffer[i], isHead ? 270 : globalGridBuffer[i + 1], isHead ? 0.8 : 0.25);
+  const hsl = brightness > 0
+    ? (isHead ? [120, 100, 95] : [128, Math.floor(60 + brightness * 40), Math.floor(4 + brightness * 40)])
+    : [130, 100, 2];
+  setOut(data, data.matrixH, data.matrixM, hsl);
 };
+
+matrixIdle.update = updateMatrix;
