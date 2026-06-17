@@ -1,7 +1,7 @@
-body {
+    body {
       padding: 0;
       margin: 0;
-      background-color: #140f0c;
+      background-color: #0a0510;
       overflow: hidden;
     }
 
@@ -35,8 +35,8 @@ body {
       height: calc(var(--clock-size) * 10);
       background: radial-gradient(
         ellipse 55% 45% at center,
-        var(--glow-color, rgba(236, 155, 95, 0.12)) 0%,
-        var(--glow-color, rgba(236, 155, 95, 0.04)) 40%,
+        var(--glow-color, rgba(255, 0, 255, 0.12)) 0%,
+        var(--glow-color, rgba(255, 0, 255, 0.04)) 40%,
         transparent 72%
       );
       border-radius: calc(var(--clock-size) * 4);
@@ -90,9 +90,9 @@ body {
 
     .controls button {
       flex: 1;
-      background: #1a1a1a;
-      color: #888;
-      border: 2px solid #333;
+      background: #150a21;
+      color: #8a7b9d;
+      border: 2px solid #2d1b4e;
       padding: 8px 0;
       border-radius: 20px;
       font-family: sans-serif;
@@ -105,9 +105,9 @@ body {
     }
 
     .controls button:hover {
-      background: #2a2a2a;
+      background: #231236;
       color: #fff;
-      border-color: #555;
+      border-color: #593699;
       transform: translateY(-1.5px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     }
@@ -117,26 +117,26 @@ body {
     }
 
     .controls button.active {
-      background: #222;
+      background: #1d0f2d;
       color: #fff;
-      border-color: #00A071;
-      box-shadow: 0 0 10px rgba(0, 160, 113, 0.2);
+      border-color: #FF00FF;
+      box-shadow: 0 0 10px rgba(255, 0, 255, 0.2);
     }
 
     .controls button.active:hover {
-      box-shadow: 0 4px 15px rgba(0, 160, 113, 0.3);
+      box-shadow: 0 4px 15px rgba(255, 0, 255, 0.3);
     }
 
     .controls button.excluded {
       opacity: 0.4;
-      border-color: #222;
+      border-color: #1d0f2d;
       text-decoration: line-through;
     }
 
     .controls button.current-playing {
       text-decoration: underline;
       text-underline-offset: 4px;
-      text-decoration-color: #00A071;
+      text-decoration-color: #FF00FF;
       text-decoration-thickness: 2px;
     }
 

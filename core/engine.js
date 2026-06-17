@@ -1,10 +1,10 @@
-const EARTHBOARD_HEX = [
-  '#332222', '#534750', '#959595', '#CBC6BE', '#EEEEEE',
-  '#9C374E', '#F00060', '#EC8788', '#EDAA89', '#FFE420',
-  '#EC9B5F', '#BD8145', '#8B633B', '#567767', '#69AD46',
-  '#00A071', '#21774F', '#32488A', '#7871FB', '#AACFDA'
+const ARCADE_HEX = [
+  '#1A1A24', '#2D283E', '#4B4263', '#7A6E94', '#E0D8EE',
+  '#FF0055', '#FF00FF', '#D02090', '#9400D3', '#7871FB',
+  '#0044FF', '#00A2FF', '#00FFFF', '#00FFCC', '#00FF00',
+  '#7FFF00', '#FFFF00', '#FFD700', '#FF8C00', '#FF3300'
 ];
-const EARTHBOARD_HAND_HEX = EARTHBOARD_HEX.slice(5);
+const ARCADE_HAND_HEX = ARCADE_HEX.slice(5);
 
 const hexToHsl = (hex) => {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -31,16 +31,16 @@ const vibrantHandHsl = (h, s, l) => {
   return [h, sat, lit];
 };
 
-const EARTHBOARD_HAND_PALETTE = EARTHBOARD_HAND_HEX.map((hex) => vibrantHandHsl(...hexToHsl(hex)));
+const ARCADE_HAND_PALETTE = ARCADE_HAND_HEX.map((hex) => vibrantHandHsl(...hexToHsl(hex)));
 
-const earthboardIndex = (track, angle) => {
+const arcadeIndex = (track, angle) => {
   const t = track !== undefined
     ? (track - HAND_MIN) / HAND_SPAN
     : mod(angle, 360) / 360;
-  return Math.min(EARTHBOARD_HAND_PALETTE.length - 1, Math.max(0, Math.floor(t * EARTHBOARD_HAND_PALETTE.length)));
+  return Math.min(ARCADE_HAND_PALETTE.length - 1, Math.max(0, Math.floor(t * ARCADE_HAND_PALETTE.length)));
 };
 
-const earthboardHandHsl = (track, angle) => EARTHBOARD_HAND_PALETTE[earthboardIndex(track, angle)];
+const arcadeHandHsl = (track, angle) => ARCADE_HAND_PALETTE[arcadeIndex(track, angle)];
 
 const clampTrack = (nextTrack) => Math.max(HAND_MIN, Math.min(HAND_MAX, nextTrack));
 
@@ -172,7 +172,7 @@ const padDigitsFromEpoch = (out, epochSec) => {
 };
 
 const MODES = [
-  { id: 'time', glow: 'rgba(236, 155, 95, 0.022)', url: 1 },
+  { id: 'time', glow: 'rgba(255, 0, 255, 0.025)', url: 1 },
   { id: 'date', glow: 'rgba(255, 255, 255, 0.015)', url: 2, idle: () => dateIdle },
   { id: 'weather', glow: 'rgba(255, 255, 255, 0.015)', url: 3, idle: () => weatherIdle },
   { id: 'ridgeline', glow: 'rgba(0, 200, 200, 0.025)', url: 4, idle: () => ridgelineIdle, auto: true },
@@ -656,7 +656,7 @@ const tick = () => {
         const blend = idleStrength;
         h = lerp(time.h, data.out.h, blend);
         m = lerp(time.m, data.out.m, blend);
-        const [baseHue, baseS, baseL] = earthboardHandHsl(data.trackSum, h);
+        const [baseHue, baseS, baseL] = arcadeHandHsl(data.trackSum, h);
         let colorHH, colorHS, colorHL;
         if (data.out.colorH != null) {
           colorHH = quantizeHue(mixHue(baseHue, data.out.colorH, blend));
@@ -689,7 +689,7 @@ const tick = () => {
       continue;
     }
 
-    const [colorHH, colorHS, colorHL] = earthboardHandHsl(data.trackSum, h);
+    const [colorHH, colorHS, colorHL] = arcadeHandHsl(data.trackSum, h);
     const keyH = packColor(colorHH, colorHS, colorHL);
     storeAndDrawHands(data, keyH, keyH,
       data.cx + cosDeg(h) * handLength, data.cy + sinDeg(h) * handLength,

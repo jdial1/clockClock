@@ -31,13 +31,13 @@ const digits = [
 
 const COLON_DOTS = new Set([1, 2, 3, 4]);
 const BG = {
-  deep: '#140f0c',
-  face: '#181210',
-  faceHi: '#1e1814',
-  cap: '#120e0b',
-  capStroke: '#2a221c',
-  rim: '#3a2c24',
-  tick: '#2a2018'
+  deep: '#0a0510',
+  face: '#120822',
+  faceHi: '#1e0e36',
+  cap: '#0b0416',
+  capStroke: '#2a154d',
+  rim: '#331a5e',
+  tick: '#2a154d'
 };
 const GRID_COLS = 28;
 const GRID_ROWS = 8;
