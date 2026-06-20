@@ -215,3 +215,52 @@
       grid-column: 2 / span 2;
       text-align: left;
     }
+
+    .blank-page .blank-app::before {
+      display: none;
+    }
+
+    .blank-toolbar {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      z-index: 10;
+    }
+
+    .blank-toolbar button {
+      background: #150a21;
+      color: #8a7b9d;
+      border: 2px solid #2d1b4e;
+      padding: 8px 20px;
+      border-radius: 20px;
+      font-family: sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+
+    .blank-toolbar button:hover {
+      background: #231236;
+      color: #fff;
+      border-color: #593699;
+    }
+
+    .blank-hint {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      border-radius: 20px;
+      background: rgba(21, 10, 33, 0.92);
+      border: 2px solid #2d1b4e;
+      color: #8a7b9d;
+      font-family: sans-serif;
+      font-size: 14px;
+      pointer-events: none;
+      user-select: none;
+      z-index: 10;
+    }

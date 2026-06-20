@@ -83,7 +83,8 @@ const quantizeHue = (h) => mod(Math.round(h / 2) * 2, 360);
 const quantizeByte = (n) => Math.round(n / 4) * 4 & 0xff;
 const packColor = (h, s, l) => (((quantizeHue(h) / 2) << 16) | (quantizeByte(s) << 8) | quantizeByte(l)) >>> 0;
 const COLOR_KEY_WHITE = 0xffffff;
-const MAX_SEGS = GRID_COLS * GRID_ROWS * 2;
+const MAX_SEGS = GRID_COLS * GRID_ROWS * 4;
+const TETRIS_ARM_ANGLES = [270, 0, 90, 180];
 const geometryBuffer = new Float32Array(MAX_SEGS * 4);
 const colorBuffer = new Uint32Array(MAX_SEGS);
 const bucketArrayPool = [];
@@ -123,6 +124,7 @@ const flushGeometryPipeline = (ctx, lineWidth) => {
   }
   ctx.lineWidth = lineWidth;
   ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
   for (const [key, segs] of buckets) {
     ctx.strokeStyle = strokeStyleForKey(key);
     ctx.beginPath();
@@ -178,11 +180,13 @@ const MODES = [
   { id: 'ridgeline', glow: 'rgba(0, 200, 200, 0.025)', url: 4, idle: () => ridgelineIdle, auto: true },
   { id: 'neon', glow: 'rgba(255, 0, 150, 0.025)', url: 5, idle: () => neonIdle, auto: true },
   { id: 'vortex', glow: 'rgba(120, 0, 255, 0.025)', url: 6, idle: () => vortexIdle, auto: true },
-  { id: 'pulse', glow: 'rgba(240, 110, 0, 0.025)', url: 7, idle: () => pulseIdle, auto: true },
+  { id: 'pulse', glow: 'rgba(100, 170, 255, 0.035)', url: 7, idle: () => pulseIdle, auto: true },
   { id: 'fish', glow: 'rgba(0, 120, 255, 0.025)', url: 8, idle: () => fishIdle, auto: true },
   { id: 'matrix', glow: 'rgba(0, 255, 50, 0.03)', url: 9, idle: () => matrixIdle, auto: true },
   { id: 'gravity', glow: 'rgba(180, 120, 40, 0.02)', url: 10, idle: () => gravityIdle, auto: true },
-  { id: 'tetris', glow: 'rgba(255, 100, 200, 0.025)', url: 11, idle: () => tetrisIdle, auto: true }
+  { id: 'tetris', glow: 'rgba(255, 100, 200, 0.025)', url: 11, idle: () => tetrisIdle, auto: true },
+  { id: 'snake', glow: 'rgba(0, 255, 80, 0.035)', url: 12, idle: () => snakeIdle, auto: true },
+  { id: 'pong', glow: 'rgba(255, 220, 60, 0.03)', url: 13, idle: () => pongIdle, auto: true }
 ];
 
 const glowThemes = Object.fromEntries(MODES.map((m) => [m.id, m.glow]));
@@ -264,7 +268,7 @@ const dA = new Array(6);
 const dB = new Array(6);
 const frameData = {
   t: 0, neonCx1: 0, neonCy1: 0, neonCx2: 0, neonCy2: 0,
-  dateT2: 0, pulseT: 0, pulseHeartbeat: 0,
+  dateT2: 0,
   vortexPrecessX: 0, vortexPrecessY: 0, vortexTimeEffect: 0, vortexSpreadTimeEffect: 0
 };
 
@@ -429,6 +433,8 @@ const setupGrid = () => {
     c.cx = Math.round(c.x * (clockSize + gap) + clockSize / 2);
     c.cy = Math.round(c.y * (clockSize + gap) + clockSize / 2);
     c.drawKeyH = undefined;
+    c.drawKeyArms = undefined;
+    c.drawKeyCustomCount = undefined;
   }
   buildFaceCanvas();
   preRenderGridBackground();
@@ -446,7 +452,7 @@ for (let y = 0; y < GRID_ROWS; y++) {
       hexAngle: Math.round(angle / 60) * 60,
       ringP: (y === 0) ? x : (x === 27) ? 28 + y : (y === 7) ? 56 + (27 - x) : 84 + (7 - y),
       ...resolveCellLayout(x - 1, y - 1, isRing),
-      out: { h: 0, m: 0, ringWeight: 0, colorH: null, colorS: null, colorL: null },
+      out: { h: 0, m: 0, armMask: 0, armAngles: null, borderPair: false, ringWeight: 0, colorH: null, colorS: null, colorL: null, neighborColorH: null, neighborColorS: null, neighborColorL: null },
       timeOut: { h: 0, m: 0 }
     });
   }
@@ -520,8 +526,12 @@ const tick = () => {
     app.style.setProperty('--glow-color', glowThemes[activeMode] || glowThemes.time);
     for (let i = 0; i < clocksCache.length; i++) {
       clocksCache[i].drawKeyH = undefined;
+      clocksCache[i].drawKeyArms = undefined;
+      clocksCache[i].drawKeyCustomCount = undefined;
       if (activeMode === 'gravity') resetGravity();
     }
+    const idleFn = anims[activeMode];
+    if (idleFn?.onEnter) idleFn.onEnter();
   }
 
   if (inRing) {
@@ -550,8 +560,6 @@ const tick = () => {
   frameData.neonCx2 = Math.cos(t * 0.9 + Math.PI) * 8;
   frameData.neonCy2 = Math.sin(t * 1.3 + Math.PI) * 2;
   frameData.dateT2 = t * 2;
-  frameData.pulseT = t * 1.25;
-  frameData.pulseHeartbeat = (t * 1.25) + Math.sin(t * 2.5) * 0.25;
   frameData.vortexPrecessX = Math.sin(t * 0.5) * 1.2;
   frameData.vortexPrecessY = Math.cos(t * 0.3) * 0.5;
   frameData.vortexTimeEffect = 96 * t + 14.4 * Math.sin(t);
@@ -565,7 +573,10 @@ const tick = () => {
   const idleStrength = idle ? idle.strength : 0;
   const isAutoTimer = currentMode === 'auto' && inRing;
   const handLength = clockSize * 0.45;
-  const handThickness = Math.max(3, clockSize * 0.1);
+  const tetrisArmLength = (clockSize + gap) * 0.47;
+  const handThickness = activeMode === 'tetris' || activeMode === 'snake' || activeMode === 'pong'
+    ? Math.max(4, clockSize * 0.13)
+    : Math.max(3, clockSize * 0.1);
   const capRadius = Math.max(0.9, clockSize * 0.04);
   let timerEx = 0;
   let timerEy = 0;
@@ -585,7 +596,7 @@ const tick = () => {
   let frameHands = 0;
 
   const clockNeedsRecalc = (data, i) => {
-    if (data.drawKeyH === undefined) return true;
+    if (data.drawKeyH === undefined && data.drawKeyArms === undefined && data.drawKeyCustomCount === undefined) return true;
     if (isAutoTimer && i === 0) return true;
     if (activeIdleAnim?.digitSource) {
       if (idleStrength < 1) return true;
@@ -602,6 +613,8 @@ const tick = () => {
   };
 
   const storeAndDrawHands = (data, keyH, keyM, exH, eyH, exM, eyM) => {
+    data.drawKeyArms = undefined;
+    data.drawKeyCustomCount = undefined;
     data.drawKeyH = keyH;
     data.drawKeyM = keyM;
     data.exH = exH;
@@ -614,9 +627,87 @@ const tick = () => {
     frameHands += 2;
   };
 
+  const storeAndDrawArms = (data, key, armMask) => {
+    data.drawKeyArms = armMask;
+    data.drawKeyColor = key;
+    data.drawKeyH = undefined;
+    data.drawKeyCustomCount = undefined;
+    if (!data.armEnds) data.armEnds = new Float32Array(8);
+    let handCount = 0;
+    for (let a = 0; a < 4; a++) {
+      if (armMask & (1 << a)) {
+        const ang = TETRIS_ARM_ANGLES[a];
+        const ex = data.cx + cosDeg(ang) * tetrisArmLength;
+        const ey = data.cy + sinDeg(ang) * tetrisArmLength;
+        data.armEnds[a * 2] = ex;
+        data.armEnds[a * 2 + 1] = ey;
+        addHandSeg(key, data.cx, data.cy, ex, ey);
+        handCount++;
+      }
+    }
+    frameRecalc++;
+    frameHands += handCount;
+  };
+
+  const storeAndDrawCustomArms = (data, key, angles, neighborKey) => {
+    data.drawKeyArms = undefined;
+    data.drawKeyH = undefined;
+    data.drawKeyColor = key;
+    data.drawKeyNeighborColor = neighborKey;
+    const count = Math.min(angles.length, 4);
+    data.drawKeyCustomCount = count;
+    if (!data.customArmEnds) data.customArmEnds = new Float32Array(8);
+    for (let a = 0; a < count; a++) {
+      const ang = angles[a];
+      const ex = data.cx + cosDeg(ang) * tetrisArmLength;
+      const ey = data.cy + sinDeg(ang) * tetrisArmLength;
+      data.customArmEnds[a * 2] = ex;
+      data.customArmEnds[a * 2 + 1] = ey;
+      const segKey = neighborKey && a >= 2 ? neighborKey : key;
+      addHandSeg(segKey, data.cx, data.cy, ex, ey);
+      frameHands++;
+    }
+    frameRecalc++;
+  };
+
+  const storeAndDrawBorderHands = (data, key, h, m) => {
+    data.drawKeyArms = undefined;
+    data.drawKeyCustomCount = undefined;
+    data.drawKeyH = key;
+    data.drawKeyM = key;
+    data.exH = data.cx + cosDeg(h) * tetrisArmLength;
+    data.eyH = data.cy + sinDeg(h) * tetrisArmLength;
+    data.exM = data.cx + cosDeg(m) * tetrisArmLength;
+    data.eyM = data.cy + sinDeg(m) * tetrisArmLength;
+    addHandSeg(key, data.cx, data.cy, data.exH, data.eyH);
+    addHandSeg(key, data.cx, data.cy, data.exM, data.eyM);
+    frameRecalc++;
+    frameHands += 2;
+  };
+
   for (let i = 0; i < clocksCache.length; i++) {
     const data = clocksCache[i];
     if (!clockNeedsRecalc(data, i)) {
+      if (data.drawKeyCustomCount) {
+        const key = data.drawKeyColor;
+        const neighborKey = data.drawKeyNeighborColor;
+        for (let a = 0; a < data.drawKeyCustomCount; a++) {
+          const segKey = neighborKey && a >= 2 ? neighborKey : key;
+          addHandSeg(segKey, data.cx, data.cy, data.customArmEnds[a * 2], data.customArmEnds[a * 2 + 1]);
+          frameHands++;
+        }
+        continue;
+      }
+      if (data.drawKeyArms) {
+        const key = data.drawKeyColor;
+        for (let a = 0; a < 4; a++) {
+          if (data.drawKeyArms & (1 << a)) {
+            addHandSeg(key, data.cx, data.cy, data.armEnds[a * 2], data.armEnds[a * 2 + 1]);
+            frameHands++;
+          }
+        }
+        continue;
+      }
       addHandSeg(data.drawKeyH, data.cx, data.cy, data.exH, data.eyH);
       addHandSeg(data.drawKeyM, data.cx, data.cy, data.exM, data.eyM);
       frameHands += 2;
@@ -653,6 +744,38 @@ const tick = () => {
     if (activeIdleAnim) {
       data.out.ringWeight = 0;
       activeIdleAnim(data, frameData);
+      if (data.out.ringWeight === 2) {
+        if (isAutoTimer && i === 0) {
+          addHandSeg(COLOR_KEY_WHITE, data.cx, data.cy, timerEx, timerEy);
+          frameRecalc++;
+          frameHands++;
+          continue;
+        }
+        const armMask = data.out.armMask;
+        const armAngles = data.out.armAngles;
+        if (!data.out.borderPair && !armMask && !armAngles?.length) {
+          data.drawKeyArms = 0;
+          data.drawKeyH = undefined;
+          data.drawKeyCustomCount = undefined;
+          continue;
+        }
+        const key = packColor(
+          quantizeHue(data.out.colorH),
+          data.out.colorS,
+          data.out.colorL
+        );
+        if (armAngles?.length) {
+          const neighborKey = data.out.neighborColorH != null
+            ? packColor(quantizeHue(data.out.neighborColorH), data.out.neighborColorS, data.out.neighborColorL)
+            : undefined;
+          storeAndDrawCustomArms(data, key, armAngles, neighborKey);
+        } else if (data.out.borderPair) {
+          storeAndDrawBorderHands(data, key, data.out.h, data.out.m);
+        } else {
+          storeAndDrawArms(data, key, armMask);
+        }
+        continue;
+      }
       if (data.out.ringWeight > 0) {
         const blend = idleStrength;
         h = lerp(time.h, data.out.h, blend);

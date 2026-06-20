@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blank Clock Editor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="blank-page">
+  <div id="root"></div>
+  <div class="blank-toolbar">
+    <button type="button" id="btn-export">Export</button>
+    <button type="button" id="btn-import">Import</button>
+    <input type="file" id="import-file" accept="application/json,.json" hidden>
+  </div>
+  <div class="blank-hint">Click a clock · WASD arm 1 · Shift+WASD arm 2 · Arrows arm 3 · Shift+Arrows arm 4</div>
+  <script src="core/constants.js"></script>
+  <script src="core/blank.js"></script>
+</body>
+</html>

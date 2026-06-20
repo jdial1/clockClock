@@ -47,7 +47,7 @@ const getCellState = (x, y) => {
 };
 
 const stepSpring = (angle, vel, equilibrium, omega, damp, dt) => {
-  const deltaRad = (angle - equilibrium) * Math.PI / 180;
+  const deltaRad = (angle - equilibrium - 360 * Math.round((angle - equilibrium) / 360)) * Math.PI / 180;
   const velRad = vel * Math.PI / 180;
   const accelRad = -omega * omega * Math.sin(deltaRad) - damp * velRad;
   const newVelRad = velRad + accelRad * dt;

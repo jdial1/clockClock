@@ -58,7 +58,10 @@ const ringPos = (data) => {
 
 const invalidateDrawKeys = () => {
   if (typeof clocksCache === 'undefined') return;
-  for (let i = 0; i < clocksCache.length; i++) clocksCache[i].drawKeyH = undefined;
+  for (let i = 0; i < clocksCache.length; i++) {
+    clocksCache[i].drawKeyH = undefined;
+    clocksCache[i].drawKeyArms = undefined;
+  }
 };
 
 const easeAngle = (cur, tgt, rate) => {
@@ -129,12 +132,63 @@ const createPool = (defaults) => {
 const setOut = (data, h, m, hsl) => {
   data.out.h = h;
   data.out.m = m;
+  data.out.armMask = 0;
+  data.out.armAngles = null;
+  data.out.borderPair = false;
   data.out.ringWeight = 1;
   if (hsl) {
     data.out.colorH = hsl[0];
     data.out.colorS = hsl[1];
     data.out.colorL = hsl[2];
   }
+};
+
+const ARM_N = 1;
+const ARM_E = 2;
+const ARM_S = 4;
+const ARM_W = 8;
+
+const setArmsOut = (data, armMask, hsl) => {
+  data.out.armMask = armMask;
+  data.out.armAngles = null;
+  data.out.borderPair = false;
+  data.out.ringWeight = 2;
+  if (hsl) {
+    data.out.colorH = hsl[0];
+    data.out.colorS = hsl[1];
+    data.out.colorL = hsl[2];
+  }
+};
+
+const setTetrisArmsOut = (data, angles, hsl, neighborHsl) => {
+  data.out.armAngles = angles;
+  data.out.armMask = 0;
+  data.out.borderPair = false;
+  data.out.ringWeight = 2;
+  data.out.colorH = hsl[0];
+  data.out.colorS = hsl[1];
+  data.out.colorL = hsl[2];
+  if (neighborHsl) {
+    data.out.neighborColorH = neighborHsl[0];
+    data.out.neighborColorS = neighborHsl[1];
+    data.out.neighborColorL = neighborHsl[2];
+  } else {
+    data.out.neighborColorH = null;
+    data.out.neighborColorS = null;
+    data.out.neighborColorL = null;
+  }
+};
+
+const setBorderOut = (data, h, m, hsl) => {
+  data.out.h = h;
+  data.out.m = m;
+  data.out.armAngles = null;
+  data.out.armMask = 0;
+  data.out.borderPair = true;
+  data.out.ringWeight = 2;
+  data.out.colorH = hsl[0];
+  data.out.colorS = hsl[1];
+  data.out.colorL = hsl[2];
 };
 
 const dualSpread = (base, spread, mFlip = 0) => ({
