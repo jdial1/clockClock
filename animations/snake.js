@@ -11,14 +11,85 @@ let snakeApple = null;
 let snakeMoveTimer = 0;
 
 const snakeKey = (x, y) => y * GRID_COLS + x;
+const snakeGridSize = GRID_COLS * GRID_ROWS;
+
+const buildSerpentinePath = () => {
+  const cells = [];
+  for (let y = 0; y < GRID_ROWS; y++) {
+    if (y % 2 === 0) {
+      for (let x = 0; x < GRID_COLS; x++) cells.push({ x, y });
+    } else {
+      for (let x = GRID_COLS - 1; x >= 0; x--) cells.push({ x, y });
+    }
+  }
+  return cells;
+};
+
+const snakeHamiltonPath = buildSerpentinePath();
+const snakeHamiltonIndex = new Int32Array(snakeGridSize).fill(-1);
+snakeHamiltonPath.forEach((c, i) => {
+  snakeHamiltonIndex[snakeKey(c.x, c.y)] = i;
+});
 
 const angleBetween = (from, to) => Math.atan2(to.y - from.y, to.x - from.x) * (180 / Math.PI);
 
-const snakeOccupied = (excludeTail = true) => {
-  const end = excludeTail ? snakeBody.length - 1 : snakeBody.length;
+const manhattanDist = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+
+const bodyOccupied = (body, excludeTail = true) => {
+  const end = excludeTail ? body.length - 1 : body.length;
   const set = new Set();
-  for (let i = 0; i < end; i++) set.add(snakeKey(snakeBody[i].x, snakeBody[i].y));
+  for (let i = 0; i < end; i++) set.add(snakeKey(body[i].x, body[i].y));
   return set;
+};
+
+const snakeOccupied = (excludeTail = true) => bodyOccupied(snakeBody, excludeTail);
+
+const inBounds = (x, y) => x >= 0 && x < GRID_COLS && y >= 0 && y < GRID_ROWS;
+
+const isAppleAt = (x, y) => snakeApple && x === snakeApple.x && y === snakeApple.y;
+
+const isOpenCell = (x, y, occupied, allowTail = false) => {
+  if (!inBounds(x, y)) return false;
+  if (isAppleAt(x, y)) return true;
+  if (allowTail && snakeBody.length) {
+    const tail = snakeBody[snakeBody.length - 1];
+    if (x === tail.x && y === tail.y) return true;
+  }
+  return !occupied.has(snakeKey(x, y));
+};
+
+const canReachTarget = (from, target, occupied, targetKey) => {
+  const queue = [from];
+  const visited = new Set([snakeKey(from.x, from.y)]);
+
+  while (queue.length) {
+    const node = queue.shift();
+    if (node.x === target.x && node.y === target.y) return true;
+
+    for (const [dx, dy] of SNAKE_DIRS) {
+      const nx = node.x + dx;
+      const ny = node.y + dy;
+      if (!inBounds(nx, ny)) continue;
+
+      const key = snakeKey(nx, ny);
+      if (visited.has(key)) continue;
+      if (occupied.has(key) && key !== targetKey) continue;
+
+      visited.add(key);
+      queue.push({ x: nx, y: ny });
+    }
+  }
+  return false;
+};
+
+const isMoveSafe = (step, willEat) => {
+  const body = snakeBody.slice();
+  body.unshift(step);
+  if (!willEat) body.pop();
+  const head = body[0];
+  const tail = body[body.length - 1];
+  const occupied = bodyOccupied(body, true);
+  return canReachTarget(head, tail, occupied, snakeKey(tail.x, tail.y));
 };
 
 const spawnSnakeApple = () => {
@@ -36,49 +107,271 @@ const spawnSnakeApple = () => {
   snakeApple = empty[Math.floor(Math.random() * empty.length)];
 };
 
-const findSnakePath = (target) => {
+const shortestPathSteps = (dst, occupied) => {
   const head = snakeBody[0];
-  const occupied = snakeOccupied(true);
-  const startKey = snakeKey(head.x, head.y);
-  const targetKey = snakeKey(target.x, target.y);
+  const dstKey = snakeKey(dst.x, dst.y);
   const queue = [{ x: head.x, y: head.y, path: [] }];
-  const visited = new Set([startKey]);
+  const visited = new Set([snakeKey(head.x, head.y)]);
 
   while (queue.length) {
     const node = queue.shift();
-    if (snakeKey(node.x, node.y) === targetKey) return node.path;
+    if (snakeKey(node.x, node.y) === dstKey) return node.path;
 
     for (const [dx, dy] of SNAKE_DIRS) {
       const nx = node.x + dx;
       const ny = node.y + dy;
-      if (nx < 0 || nx >= GRID_COLS || ny < 0 || ny >= GRID_ROWS) continue;
+      if (!isOpenCell(nx, ny, occupied, true)) continue;
+
+      const key = snakeKey(nx, ny);
+      if (visited.has(key)) continue;
+
+      visited.add(key);
+      queue.push({ x: nx, y: ny, path: node.path.concat({ x: nx, y: ny }) });
+    }
+  }
+  return [];
+};
+
+const maxPathSteps = (dst) => {
+  const occupied = snakeOccupied(true);
+  const minSteps = shortestPathSteps(dst, occupied);
+  if (!minSteps.length) return [];
+
+  const visited = new Set([snakeKey(snakeBody[0].x, snakeBody[0].y)]);
+  let cur = { x: snakeBody[0].x, y: snakeBody[0].y };
+  for (const step of minSteps) {
+    visited.add(snakeKey(step.x, step.y));
+    cur = step;
+  }
+
+  const maxSteps = minSteps.slice();
+  cur = { x: snakeBody[0].x, y: snakeBody[0].y };
+  let pathIdx = 0;
+
+  while (pathIdx < maxSteps.length) {
+    const step = maxSteps[pathIdx];
+    const dx = step.x - cur.x;
+    const dy = step.y - cur.y;
+    const perp = dx === 0 ? [[-1, 0], [1, 0]] : [[0, -1], [0, 1]];
+    let extended = false;
+
+    for (const [pdx, pdy] of perp) {
+      const curExt = { x: cur.x + pdx, y: cur.y + pdy };
+      const nextExt = { x: step.x + pdx, y: step.y + pdy };
+      const curKey = snakeKey(curExt.x, curExt.y);
+      const nextKey = snakeKey(nextExt.x, nextExt.y);
+      const emptyNotVisited = (pos, key) =>
+        inBounds(pos.x, pos.y) && !visited.has(key) && !occupied.has(key) && !isAppleAt(pos.x, pos.y);
+
+      if (emptyNotVisited(curExt, curKey) && emptyNotVisited(nextExt, nextKey)) {
+        visited.add(curKey);
+        visited.add(nextKey);
+        maxSteps.splice(pathIdx, 1, curExt, step, { x: step.x - pdx, y: step.y - pdy });
+        extended = true;
+        break;
+      }
+    }
+
+    if (!extended) {
+      pathIdx++;
+      cur = step;
+    }
+  }
+
+  return maxSteps;
+};
+
+const hamiltonDistToFood = (pos) => {
+  if (!snakeApple) return snakeGridSize;
+  const from = snakeHamiltonIndex[snakeKey(pos.x, pos.y)];
+  const to = snakeHamiltonIndex[snakeKey(snakeApple.x, snakeApple.y)];
+  if (from < 0 || to < 0) return snakeGridSize;
+  return to >= from ? to - from : snakeGridSize - from + to;
+};
+
+const hamiltonSeparation = (headIdx, tailIdx) => {
+  if (headIdx < tailIdx) return headIdx + snakeGridSize - tailIdx;
+  return headIdx - tailIdx;
+};
+
+const findSafeAppleStep = () => {
+  if (!snakeApple) return null;
+
+  const head = snakeBody[0];
+  const tail = snakeBody[snakeBody.length - 1];
+  const occupied = snakeOccupied(true);
+  const targetKey = snakeKey(snakeApple.x, snakeApple.y);
+  const headIdx = snakeHamiltonIndex[snakeKey(head.x, head.y)];
+  const tailIdx = snakeHamiltonIndex[snakeKey(tail.x, tail.y)];
+  const strictHamilton = snakeBody.length > snakeGridSize * 0.85 && headIdx >= 0 && tailIdx >= 0;
+  const minSeparation = snakeBody.length + 4;
+
+  const queue = [{ x: head.x, y: head.y, first: null, depth: 0 }];
+  const visited = new Set([snakeKey(head.x, head.y)]);
+  let best = null;
+  let bestDepth = Infinity;
+  let bestFoodDist = Infinity;
+
+  while (queue.length) {
+    const node = queue.shift();
+    const nodeKey = snakeKey(node.x, node.y);
+
+    if (nodeKey === targetKey) {
+      if (!node.first || !isMoveSafe(node.first, true)) continue;
+
+      const stepIdx = snakeHamiltonIndex[snakeKey(node.first.x, node.first.y)];
+      if (strictHamilton && hamiltonSeparation(stepIdx, tailIdx) < minSeparation) continue;
+
+      const foodDist = hamiltonDistToFood(node.first);
+      if (node.depth < bestDepth || (node.depth === bestDepth && foodDist < bestFoodDist)) {
+        bestDepth = node.depth;
+        bestFoodDist = foodDist;
+        best = node.first;
+      }
+      continue;
+    }
+
+    for (const [dx, dy] of SNAKE_DIRS) {
+      const nx = node.x + dx;
+      const ny = node.y + dy;
+      if (!inBounds(nx, ny)) continue;
 
       const key = snakeKey(nx, ny);
       if (visited.has(key)) continue;
       if (occupied.has(key) && key !== targetKey) continue;
 
       visited.add(key);
-      queue.push({ x: nx, y: ny, path: node.path.concat({ x: nx, y: ny }) });
+      const first = node.first ?? { x: nx, y: ny };
+      queue.push({ x: nx, y: ny, first, depth: node.depth + 1 });
     }
+  }
+
+  return best;
+};
+
+const eatAdjacentAppleStep = () => {
+  if (!snakeApple) return null;
+
+  const head = snakeBody[0];
+  for (const [dx, dy] of SNAKE_DIRS) {
+    const nx = head.x + dx;
+    const ny = head.y + dy;
+    if (nx !== snakeApple.x || ny !== snakeApple.y) continue;
+    const step = { x: nx, y: ny };
+    if (isMoveSafe(step, true)) return step;
   }
   return null;
 };
 
-const pickSnakeSurvivalStep = () => {
+const greedyTowardFoodStep = () => {
+  if (!snakeApple) return null;
+
   const head = snakeBody[0];
   const occupied = snakeOccupied(true);
-  const options = [];
+  let best = null;
+  let bestDist = Infinity;
 
   for (const [dx, dy] of SNAKE_DIRS) {
     const nx = head.x + dx;
     const ny = head.y + dy;
-    if (nx < 0 || nx >= GRID_COLS || ny < 0 || ny >= GRID_ROWS) continue;
-    if (occupied.has(snakeKey(nx, ny))) continue;
-    options.push({ x: nx, y: ny });
-  }
+    if (!isOpenCell(nx, ny, occupied, false)) continue;
 
-  if (!options.length) return null;
-  return options[Math.floor(Math.random() * options.length)];
+    const step = { x: nx, y: ny };
+    const ate = isAppleAt(nx, ny);
+    if (!isMoveSafe(step, ate)) continue;
+
+    const dist = manhattanDist(step, snakeApple);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = step;
+    }
+  }
+  return best;
+};
+
+const firstSafePathStep = (path) => {
+  if (!path.length) return null;
+  const step = path[0];
+  const ate = isAppleAt(step.x, step.y);
+  return isMoveSafe(step, ate) ? step : null;
+};
+
+const hamiltonTowardFoodStep = () => {
+  if (!snakeApple) return null;
+
+  const head = snakeBody[0];
+  const occupied = snakeOccupied(true);
+  let best = null;
+  let bestDist = Infinity;
+
+  for (const [dx, dy] of SNAKE_DIRS) {
+    const nx = head.x + dx;
+    const ny = head.y + dy;
+    if (!isOpenCell(nx, ny, occupied, false)) continue;
+
+    const step = { x: nx, y: ny };
+    const ate = isAppleAt(nx, ny);
+    if (!isMoveSafe(step, ate)) continue;
+
+    const dist = hamiltonDistToFood(step);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = step;
+    }
+  }
+  return best;
+};
+
+const hamiltonPathStep = () => {
+  const head = snakeBody[0];
+  const headIdx = snakeHamiltonIndex[snakeKey(head.x, head.y)];
+  if (headIdx < 0) return null;
+
+  const targetIdx = headIdx + 1 < snakeGridSize ? headIdx + 1 : 0;
+
+  for (const [dx, dy] of SNAKE_DIRS) {
+    const nx = head.x + dx;
+    const ny = head.y + dy;
+    if (!inBounds(nx, ny)) continue;
+    if (snakeHamiltonIndex[snakeKey(nx, ny)] !== targetIdx) continue;
+
+    const step = { x: nx, y: ny };
+    const ate = isAppleAt(nx, ny);
+    if (isMoveSafe(step, ate)) return step;
+  }
+  return null;
+};
+
+const findAnySafeStep = () => {
+  const head = snakeBody[0];
+  const occupied = snakeOccupied(true);
+
+  for (const [dx, dy] of SNAKE_DIRS) {
+    const nx = head.x + dx;
+    const ny = head.y + dy;
+    if (!isOpenCell(nx, ny, occupied, false)) continue;
+
+    const step = { x: nx, y: ny };
+    const ate = isAppleAt(nx, ny);
+    if (isMoveSafe(step, ate)) return step;
+  }
+  return null;
+};
+
+const pickSnakeStep = () => {
+  const tail = snakeBody[snakeBody.length - 1];
+  const occupied = snakeOccupied(true);
+
+  return (
+    eatAdjacentAppleStep()
+    ?? findSafeAppleStep()
+    ?? greedyTowardFoodStep()
+    ?? firstSafePathStep(shortestPathSteps(snakeApple, occupied))
+    ?? hamiltonTowardFoodStep()
+    ?? firstSafePathStep(maxPathSteps(tail))
+    ?? hamiltonPathStep()
+    ?? findAnySafeStep()
+  );
 };
 
 const resetSnake = () => {
@@ -96,8 +389,7 @@ const advanceSnake = () => {
     return;
   }
 
-  const path = findSnakePath(snakeApple);
-  const step = path?.length ? path[0] : pickSnakeSurvivalStep();
+  const step = pickSnakeStep();
   if (!step) {
     resetSnake();
     return;
