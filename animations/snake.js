@@ -9,6 +9,11 @@ const SNAKE_MOVE_INTERVAL = 0.11;
 const snakeBody = [];
 let snakeApple = null;
 let snakeMoveTimer = 0;
+let snakeNoProgressMoves = 0;
+let snakeLastFoodDist = Infinity;
+
+const SNAKE_TAIL_FOLLOW_THRESHOLD = 0.65;
+const SNAKE_STUCK_MOVE_LIMIT = 24;
 
 const snakeKey = (x, y) => y * GRID_COLS + x;
 const snakeGridSize = GRID_COLS * GRID_ROWS;
@@ -342,9 +347,28 @@ const hamiltonPathStep = () => {
   return null;
 };
 
-const findAnySafeStep = () => {
+const snakeCanTailFollow = () => snakeBody.length > snakeGridSize * SNAKE_TAIL_FOLLOW_THRESHOLD;
+
+const foodPathSteps = () => {
+  if (!snakeApple) return [];
+  return shortestPathSteps(snakeApple, snakeOccupied(true));
+};
+
+const directFoodStep = (ignoreSafety = false) => {
+  const path = foodPathSteps();
+  if (!path.length) return null;
+
+  const step = path[0];
+  const ate = isAppleAt(step.x, step.y);
+  if (!ignoreSafety && snakeCanTailFollow() && !isMoveSafe(step, ate)) return null;
+  return step;
+};
+
+const findBestSafeStep = () => {
   const head = snakeBody[0];
   const occupied = snakeOccupied(true);
+  let best = null;
+  let bestDist = Infinity;
 
   for (const [dx, dy] of SNAKE_DIRS) {
     const nx = head.x + dx;
@@ -353,14 +377,21 @@ const findAnySafeStep = () => {
 
     const step = { x: nx, y: ny };
     const ate = isAppleAt(nx, ny);
-    if (isMoveSafe(step, ate)) return step;
+    if (!isMoveSafe(step, ate)) continue;
+
+    const dist = snakeApple ? manhattanDist(step, snakeApple) : 0;
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = step;
+    }
   }
-  return null;
+  return best;
 };
 
 const pickSnakeStep = () => {
   const tail = snakeBody[snakeBody.length - 1];
   const occupied = snakeOccupied(true);
+  const forceFood = snakeNoProgressMoves >= SNAKE_STUCK_MOVE_LIMIT;
 
   return (
     eatAdjacentAppleStep()
@@ -368,9 +399,10 @@ const pickSnakeStep = () => {
     ?? greedyTowardFoodStep()
     ?? firstSafePathStep(shortestPathSteps(snakeApple, occupied))
     ?? hamiltonTowardFoodStep()
-    ?? firstSafePathStep(maxPathSteps(tail))
-    ?? hamiltonPathStep()
-    ?? findAnySafeStep()
+    ?? directFoodStep(forceFood)
+    ?? (snakeCanTailFollow() ? firstSafePathStep(maxPathSteps(tail)) : null)
+    ?? (snakeCanTailFollow() ? hamiltonPathStep() : null)
+    ?? findBestSafeStep()
   );
 };
 
@@ -380,6 +412,8 @@ const resetSnake = () => {
   snakeBody.length = 0;
   for (let i = 0; i < 4; i++) snakeBody.push({ x: cx + i, y: cy });
   snakeMoveTimer = SNAKE_MOVE_INTERVAL;
+  snakeNoProgressMoves = 0;
+  snakeLastFoodDist = Infinity;
   spawnSnakeApple();
 };
 
@@ -399,7 +433,20 @@ const advanceSnake = () => {
   const ate = step.x === snakeApple.x && step.y === snakeApple.y;
 
   if (!ate) snakeBody.pop();
-  else spawnSnakeApple();
+  else {
+    spawnSnakeApple();
+    snakeNoProgressMoves = 0;
+  }
+
+  if (snakeApple) {
+    const foodDist = manhattanDist(snakeBody[0], snakeApple);
+    if (foodDist < snakeLastFoodDist) {
+      snakeNoProgressMoves = 0;
+      snakeLastFoodDist = foodDist;
+    } else {
+      snakeNoProgressMoves++;
+    }
+  }
 
   if (snakeBody.slice(1).some((p) => p.x === step.x && p.y === step.y)) resetSnake();
 };
